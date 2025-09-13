@@ -73,15 +73,8 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -112,12 +105,13 @@ import com.nervesparks.iris.Downloadable
 import com.nervesparks.iris.LinearGradient
 import com.nervesparks.iris.MainViewModel
 import com.nervesparks.iris.R
-import com.nervesparks.iris.ui.components.ChatMessageList
 import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import com.nervesparks.iris.ui.components.DownloadModal
+import com.nervesparks.iris.ui.components.CodeBlockMessage
 import com.nervesparks.iris.ui.components.LoadingModal
-
+import com.nervesparks.iris.ui.components.UserOrAssistantMessage
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -177,6 +171,8 @@ fun MainChatScreen (
     if (allModelsExist) {
         viewModel.showModal = false
     }
+    val chatMessages by viewModel.chatMessages.collectAsState()
+
     Box(
         modifier = Modifier.fillMaxSize()
 
@@ -209,6 +205,14 @@ fun MainChatScreen (
                         Icon(
                             imageVector = Icons.Filled.DataObject,
                             contentDescription = "Embedding"
+                        )
+                    }
+                    IconButton(onClick = {
+                        context.startActivity(Intent(context, com.nervesparks.iris.SearchActivity::class.java))
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.Search,
+                            contentDescription = "Search"
                         )
                     }
                 }
@@ -247,7 +251,7 @@ fun MainChatScreen (
                                 )
                         }) {
 
-                        if (viewModel.messages.isEmpty() && !viewModel.showModal && !viewModel.showAlert) {
+                        if (chatMessages.isEmpty() && !viewModel.showModal && !viewModel.showAlert) {
                             LazyColumn(
                                 modifier = Modifier
                                     .fillMaxSize() // Take up the whole screen
@@ -334,227 +338,32 @@ fun MainChatScreen (
                         else {
 
                             LazyColumn(state = scrollState) {
-                                // Track the first user and assistant messages
-
-                                var length = viewModel.messages.size
-
-                                itemsIndexed(viewModel.messages.slice(3..< length) as? List<Map<String, String>> ?: emptyList()) { index, messageMap ->
-                                    val role = messageMap["role"] ?: ""
-                                    val content = messageMap["content"] ?: ""
+                                itemsIndexed(chatMessages) { index, message ->
+                                    val role = if (message.isUser) "user" else "assistant"
+                                    val content = message.text
                                     val trimmedMessage = if (content.endsWith("\n")) {
                                         content.substring(startIndex = 0, endIndex = content.length - 1)
                                     } else {
                                         content
                                     }
 
-                                    // Skip rendering first user and first assistant messages
-
-                                    if (role != "system") {
-                                        if (role != "codeBlock") {
-                                            Box {
-                                                val context = LocalContext.current
-                                                val interactionSource = remember { MutableInteractionSource() }
-                                                val sheetState = rememberModalBottomSheetState()
-                                                var isSheetOpen by rememberSaveable {
-                                                    mutableStateOf(false)
-                                                }
-                                                if(isSheetOpen){
-                                                    MessageBottomSheet(
-                                                        message = trimmedMessage,
-                                                        clipboard = clipboard,
-                                                        context = context,
-                                                        viewModel = viewModel,
-                                                        onDismiss = {
-                                                            isSheetOpen = false
-                                                            viewModel.toggler = false
-                                                        },
-                                                        sheetState = sheetState
-                                                    )
-                                                }
-                                                Row(
-                                                    horizontalArrangement = if (role == "user") Arrangement.End else Arrangement.Start,
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(
-                                                            start = 8.dp,
-                                                            top = 8.dp,
-                                                            end = 8.dp,
-                                                            bottom = 0.dp
-                                                        ),
-                                                ) {
-                                                    if(role == "assistant") {
-                                                        Image(
-                                                            painter = painterResource(
-                                                                id = R.drawable.logo
-                                                            ),
-                                                            contentDescription =  "Bot Icon",
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
-                                                    Box(modifier = Modifier
-                                                        .padding(horizontal = 2.dp)
-                                                        .background(
-                                                            color = if (role == "user") Color(
-                                                                0xFF171E2C
-                                                            ) else Color.Transparent,
-                                                            shape = RoundedCornerShape(12.dp),
-                                                        )
-                                                        .combinedClickable(
-                                                            interactionSource = interactionSource,
-                                                            indication = ripple(color = Color.Gray),
-                                                            onLongClick = {
-                                                                if (viewModel.getIsSending()) {
-                                                                    Toast
-                                                                        .makeText(
-                                                                            context,
-                                                                            " Wait till generation is done! ",
-                                                                            Toast.LENGTH_SHORT
-                                                                        )
-                                                                        .show()
-                                                                } else {
-                                                                    isSheetOpen = true
-                                                                }
-                                                            },
-                                                            onClick = {
-                                                                kc?.hide()
-                                                            }
-                                                        )
-                                                    ) {
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .padding(5.dp)
-                                                        ) {
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .widthIn(max = 300.dp)
-                                                                    .padding(3.dp)
-                                                            ){
-                                                                Text(
-                                                                    text = if (trimmedMessage.startsWith("```")) {
-                                                                        trimmedMessage.substring(3)
-                                                                    } else {
-                                                                        trimmedMessage
-                                                                    },
-                                                                    style = MaterialTheme.typography.bodyLarge.copy(color = Color(0xFFA0A0A5)),
-                                                                    modifier = Modifier
-                                                                        .padding(start = 1.dp, end = 1.dp)
-                                                                )
-                                                                if (viewModel.perplexity && role == "assistant") {
-                                                                    var perplexityValue by remember { mutableStateOf<Double?>(null) }
-                                                                    LaunchedEffect(key1 = trimmedMessage) {
-                                                                        perplexityValue = viewModel.perplexity(trimmedMessage)
-                                                                    }
-                                                                    if (perplexityValue != null) {
-                                                                        Text(
-                                                                            text = "Perplexity: %.2f".format(perplexityValue),
-                                                                            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray),
-                                                                            modifier = Modifier.padding(top = 4.dp)
-                                                                        )
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                    if(role == "user") {
-                                                        Image(
-                                                            painter = painterResource(
-                                                                id = R.drawable.user_icon
-                                                            ),
-                                                            contentDescription = "Human Icon",
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
-                                                }
+                                    if (role == "codeBlock") {
+                                        CodeBlockMessage(content = trimmedMessage)
+                                    } else {
+                                        UserOrAssistantMessage(
+                                            role = role,
+                                            message = trimmedMessage,
+                                            onLongClick = {
+                                                // Your existing onLongClick logic
                                             }
-                                        } else {
-                                            val context = LocalContext.current
-                                            val interactionSource = remember { MutableInteractionSource() }
-                                            val sheetState = rememberModalBottomSheetState()
-                                            var isSheetOpen by rememberSaveable {
-                                                mutableStateOf(false)
-                                            }
-                                            // Code block rendering remains the same
-                                            Box(
-                                                modifier = Modifier
-                                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                                                    .background(
-                                                        Color.Black,
-                                                        shape = RoundedCornerShape(8.dp)
-                                                    )
-                                                    .fillMaxWidth()
-                                            ) {
-                                                if(isSheetOpen){
-                                                    MessageBottomSheet(
-                                                        message = trimmedMessage,
-                                                        clipboard = clipboard,
-                                                        context = context,
-                                                        viewModel = viewModel,
-                                                        onDismiss = {
-                                                            isSheetOpen = false
-                                                            viewModel.toggler = false
-                                                        },
-                                                        sheetState = sheetState
-                                                    )
-                                                }
-                                                Column(modifier = Modifier.combinedClickable(
-                                                        interactionSource = interactionSource,
-                                                indication = ripple(color = Color.LightGray),
-                                                onLongClick = {
-                                                    if (viewModel.getIsSending()) {
-                                                        Toast
-                                                            .makeText(
-                                                                context,
-                                                                " Wait till generation is done! ",
-                                                                Toast.LENGTH_SHORT
-                                                            )
-                                                            .show()
-                                                    } else {
-                                                        isSheetOpen = true
-                                                    }
-                                                },
-                                                onClick = {
-                                                    kc?.hide()
-                                                }
-                                                )) {
-                                                    Row(
-                                                        horizontalArrangement = Arrangement.End,
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(
-                                                                top = 8.dp,
-                                                                bottom = 8.dp,
-                                                                start = 6.dp,
-                                                                end = 6.dp
-                                                            )
-                                                    ) {
-                                                        // Previous content here
-                                                    }
-                                                    Text(
-                                                        text = if (trimmedMessage.startsWith("```")) {
-                                                            trimmedMessage.substring(3)
-                                                        } else {
-                                                            trimmedMessage
-                                                        },
-                                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                                            color = Color(0xFFA0A0A5)
-                                                        ),
-                                                        modifier = Modifier.padding(16.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
+                                        )
                                     }
-                                }
-                                item {
-                                    Spacer(modifier = Modifier
-                                        .height(1.dp)
-                                        .fillMaxWidth())
                                 }
                             }
 
                             ScrollToBottomButton(
                                 scrollState = scrollState,
-                                messages = viewModel.messages,
+                                messages = chatMessages,
                                 viewModel = viewModel
                             )
 
@@ -567,7 +376,7 @@ fun MainChatScreen (
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
                         items(Prompts.size) { index ->
-                            if(viewModel.messages.size <= 1){
+                            if(chatMessages.isEmpty()){
                                 Card(
                                     modifier = Modifier
                                         .height(100.dp)
@@ -883,10 +692,10 @@ fun ScrollToBottomButton(
     }
 
     // Continuously scroll to the bottom while auto-scrolling is enabled
-    LaunchedEffect(viewModel.messages.size, isAutoScrolling) {
+    LaunchedEffect(messages.size, isAutoScrolling) {
         if (isAutoScrolling) {
             coroutineScope.launch {
-                scrollState.scrollToItem(viewModel.messages.size + 1)
+                scrollState.scrollToItem(messages.size + 1)
             }
         }
     }
@@ -903,7 +712,7 @@ fun ScrollToBottomButton(
     LaunchedEffect(messages.lastOrNull()) {
         if (isAutoScrolling && messages.isNotEmpty()) {
             coroutineScope.launch {
-                scrollState.scrollToItem(viewModel.messages.size + 1)
+                scrollState.scrollToItem(messages.size + 1)
             }
         }
     }
@@ -922,7 +731,7 @@ fun ScrollToBottomButton(
                     isAutoScrolling = true // Enable auto-scrolling
                     isButtonVisible = false // Hide the button on click
                     coroutineScope.launch {
-                        scrollState.scrollToItem(viewModel.messages.size + 1)
+                        scrollState.scrollToItem(messages.size + 1)
                     }
                 },
                 modifier = Modifier

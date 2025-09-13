@@ -24,7 +24,30 @@ import java.io.File
 import java.util.Locale
 import java.util.UUID
 
-class MainViewModel(val llamaAndroid: LLamaAndroid = LLamaAndroid.instance(), private val userPreferencesRepository: UserPreferencesRepository): ViewModel() {
+import com.nervesparks.iris.data.database.ChatMessageDao
+
+import com.nervesparks.iris.data.database.ChatMessage
+import kotlinx.coroutines.flow.*
+
+class MainViewModel(
+    val llamaAndroid: LLamaAndroid = LLamaAndroid.instance(),
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val chatMessageDao: ChatMessageDao
+): ViewModel() {
+
+    private val _streamingResponse = MutableStateFlow<ChatMessage?>(null)
+
+    val chatMessages: StateFlow<List<ChatMessage>> = combine(
+        chatMessageDao.getAllMessages(),
+        _streamingResponse
+    ) { messages, streaming ->
+        if (streaming != null) {
+            messages + streaming
+        } else {
+            messages
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     companion object {
 //        @JvmStatic
 //        private val NanosPerSecond = 1_000_000_000.0
@@ -49,11 +72,6 @@ class MainViewModel(val llamaAndroid: LLamaAndroid = LLamaAndroid.instance(), pr
     lateinit var selectedModel: String
     private val tag: String? = this::class.simpleName
 
-    var messages by mutableStateOf(
-
-            listOf<Map<String, String>>(),
-        )
-        private set
     var newShowModal by mutableStateOf(false)
     var showDownloadInfoModal by mutableStateOf(false)
     var user_thread by mutableStateOf(0f)
@@ -249,7 +267,7 @@ class MainViewModel(val llamaAndroid: LLamaAndroid = LLamaAndroid.instance(), pr
                 llamaAndroid.unload()
 
             } catch (exc: IllegalStateException) {
-                addMessage("error", exc.message ?: "")
+                Log.e(tag, "onCleared() failed", exc)
             }
         }
     }
@@ -258,48 +276,94 @@ class MainViewModel(val llamaAndroid: LLamaAndroid = LLamaAndroid.instance(), pr
         val userMessage = removeExtraWhiteSpaces(message)
         message = ""
 
-        // Add to messages console.
-        if (userMessage != "" && userMessage != " ") {
-            if(first){
-                addMessage("system", "This is a conversation between User and Iris, a friendly chatbot. Iris is helpful, kind, honest, good at writing, and never fails to answer any requests immediately and with precision.")
-                addMessage("user", "Hi")
-                addMessage("assistant", "How may I help You?")
-                first = false
-            }
-
-            addMessage("user", userMessage)
-
-
+        if (userMessage.isNotBlank()) {
             viewModelScope.launch {
+                // Save user message
+                val userEmbedding = llamaAndroid.embedding(userMessage)
+                val userChatMessage = ChatMessage(
+                    text = userMessage,
+                    timestamp = System.currentTimeMillis(),
+                    isUser = true,
+                    embedding = floatArrayToByteArray(userEmbedding)
+                )
+                chatMessageDao.insert(userChatMessage)
+
+                // Get assistant's response
+                val assistantResponse = StringBuilder()
                 try {
-                    llamaAndroid.send(llamaAndroid.getTemplate(messages))
+                    if (first) {
+                        val systemMessage = "This is a conversation between User and Iris, a friendly chatbot. Iris is helpful, kind, honest, good at writing, and never fails to answer any requests immediately and with precision."
+                        val systemChatMessage = ChatMessage(
+                            text = systemMessage,
+                            timestamp = System.currentTimeMillis(),
+                            isUser = false,
+                            embedding = floatArrayToByteArray(llamaAndroid.embedding(systemMessage))
+                        )
+                        chatMessageDao.insert(systemChatMessage)
+
+                        val hiMessage = "Hi"
+                        val hiChatMessage = ChatMessage(
+                            text = hiMessage,
+                            timestamp = System.currentTimeMillis(),
+                            isUser = true,
+                            embedding = floatArrayToByteArray(llamaAndroid.embedding(hiMessage))
+                        )
+                        chatMessageDao.insert(hiChatMessage)
+
+                        val howMayIHelpYouMessage = "How may I help You?"
+                        val howMayIHelpYouChatMessage = ChatMessage(
+                            text = howMayIHelpYouMessage,
+                            timestamp = System.currentTimeMillis(),
+                            isUser = false,
+                            embedding = floatArrayToByteArray(llamaAndroid.embedding(howMayIHelpYouMessage))
+                        )
+                        chatMessageDao.insert(howMayIHelpYouChatMessage)
+                        first = false
+                    }
+
+                    val messagesForTemplate = chatMessages.value.map {
+                        mapOf("role" to if (it.isUser) "user" else "assistant", "content" to it.text)
+                    } + mapOf("role" to "user", "content" to userMessage)
+
+                    llamaAndroid.send(llamaAndroid.getTemplate(messagesForTemplate))
                         .catch {
                             Log.e(tag, "send() failed", it)
-                            addMessage("error", it.message ?: "")
+                            // Handle error appropriately
                         }
                         .collect { response ->
-                            // Create a new assistant message with the response
-                            if (getIsMarked()) {
-                                addMessage("codeBlock", response)
-
-                            } else {
-                                addMessage("assistant", response)
-                            }
+                            assistantResponse.append(response)
+                            _streamingResponse.value = ChatMessage(
+                                text = assistantResponse.toString(),
+                                timestamp = System.currentTimeMillis(),
+                                isUser = false,
+                                embedding = byteArrayOf() // Empty embedding for now
+                            )
                         }
-                }
-                finally {
-                    if (!getIsCompleteEOT()) {
-                        trimEOT()
+                } finally {
+                    val finalResponse = assistantResponse.toString()
+                    if (finalResponse.isNotBlank()) {
+                        // Save assistant message
+                        val assistantEmbedding = llamaAndroid.embedding(finalResponse)
+                        val assistantChatMessage = ChatMessage(
+                            text = finalResponse,
+                            timestamp = System.currentTimeMillis(),
+                            isUser = false,
+                            embedding = floatArrayToByteArray(assistantEmbedding)
+                        )
+                        chatMessageDao.insert(assistantChatMessage)
                     }
+                    _streamingResponse.value = null
                 }
-
-
-
             }
         }
+    }
 
-
-
+    private fun floatArrayToByteArray(floatArray: FloatArray): ByteArray {
+        val byteBuffer = java.nio.ByteBuffer.allocate(floatArray.size * 4)
+        for (value in floatArray) {
+            byteBuffer.putFloat(value)
+        }
+        return byteBuffer.array()
     }
 
 //    fun bench(pp: Int, tg: Int, pl: Int, nr: Int = 1) {
@@ -415,34 +479,6 @@ class MainViewModel(val llamaAndroid: LLamaAndroid = LLamaAndroid.instance(), pr
             eot_str = llamaAndroid.send_eot_str()
         }
     }
-    private fun addMessage(role: String, content: String) {
-        val newMessage = mapOf("role" to role, "content" to content)
-
-        messages = if (messages.isNotEmpty() && messages.last()["role"] == role) {
-            val lastMessageContent = messages.last()["content"] ?: ""
-            val updatedContent = "$lastMessageContent$content"
-            val updatedLastMessage = messages.last() + ("content" to updatedContent)
-            messages.toMutableList().apply {
-                set(messages.lastIndex, updatedLastMessage)
-            }
-        } else {
-            messages + listOf(newMessage)
-        }
-    }
-
-    private fun trimEOT() {
-        if (messages.isEmpty()) return
-        val lastMessageContent = messages.last()["content"] ?: ""
-        // Only slice if the content is longer than the EOT string
-        if (lastMessageContent.length < eot_str.length) return
-
-        val updatedContent = lastMessageContent.slice(0..(lastMessageContent.length-eot_str.length))
-        val updatedLastMessage = messages.last() + ("content" to updatedContent)
-        messages = messages.toMutableList().apply {
-            set(messages.lastIndex, updatedLastMessage)
-        }
-        messages.last()["content"]?.let { Log.e(tag, it) }
-    }
 
     private fun removeExtraWhiteSpaces(input: String): String {
         // Replace multiple white spaces with a single space
@@ -466,9 +502,9 @@ class MainViewModel(val llamaAndroid: LLamaAndroid = LLamaAndroid.instance(), pr
     }
 
     fun clear() {
-        messages = listOf(
-
-        )
+        viewModelScope.launch {
+            chatMessageDao.deleteAll()
+        }
         first = true
     }
 

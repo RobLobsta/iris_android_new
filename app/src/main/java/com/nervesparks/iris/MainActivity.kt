@@ -66,15 +66,18 @@ import com.nervesparks.iris.data.UserPreferencesRepository
 import com.nervesparks.iris.ui.SettingsBottomSheet
 
 
+import com.nervesparks.iris.data.database.AppDatabase
+
 class MainViewModelFactory(
     private val llamaAndroid: LLamaAndroid,
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val appDatabase: AppDatabase
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return MainViewModel(llamaAndroid, userPreferencesRepository) as T
+            return MainViewModel(llamaAndroid, userPreferencesRepository, appDatabase.chatMessageDao()) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
@@ -124,9 +127,10 @@ class MainActivity(
                 .build()
         )
         val userPrefsRepo = UserPreferencesRepository.getInstance(applicationContext)
+        val appDatabase = AppDatabase.getDatabase(applicationContext)
 
         val lLamaAndroid = LLamaAndroid.instance()
-        val viewModelFactory = MainViewModelFactory(lLamaAndroid, userPrefsRepo)
+        val viewModelFactory = MainViewModelFactory(lLamaAndroid, userPrefsRepo, appDatabase)
         viewModel = ViewModelProvider(this, viewModelFactory)[MainViewModel::class.java]
 
 

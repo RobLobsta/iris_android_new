@@ -13,7 +13,8 @@ class QuantizeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val llamaAndroid = android.llama.cpp.LLamaAndroid.instance()
         val userPrefsRepo = com.nervesparks.iris.data.UserPreferencesRepository.getInstance(applicationContext)
-        val viewModelFactory = MainViewModelFactory(llamaAndroid, userPrefsRepo)
+        val appDatabase = com.nervesparks.iris.data.database.AppDatabase.getDatabase(applicationContext)
+        val viewModelFactory = MainViewModelFactory(llamaAndroid, userPrefsRepo, appDatabase)
         viewModel = ViewModelProvider(this, viewModelFactory)[MainViewModel::class.java]
 
         setContent {
