@@ -414,6 +414,19 @@ fun MainChatScreen (
                                                                     modifier = Modifier
                                                                         .padding(start = 1.dp, end = 1.dp)
                                                                 )
+                                                                if (viewModel.perplexity && role == "assistant") {
+                                                                    var perplexityValue by remember { mutableStateOf<Double?>(null) }
+                                                                    LaunchedEffect(key1 = trimmedMessage) {
+                                                                        perplexityValue = viewModel.perplexity(trimmedMessage)
+                                                                    }
+                                                                    if (perplexityValue != null) {
+                                                                        Text(
+                                                                            text = "Perplexity: %.2f".format(perplexityValue),
+                                                                            style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray),
+                                                                            modifier = Modifier.padding(top = 4.dp)
+                                                                        )
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }

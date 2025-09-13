@@ -45,6 +45,12 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
 # Specifies libraries CMake should link to your target library. You
 # can link libraries from various origins, such as libraries defined in this
 # build script, prebuilt third-party libraries, or Android system libraries.
+target_include_directories(
+        llama-android
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb/common
+)
+
 target_link_libraries(${CMAKE_PROJECT_NAME}
         # List libraries link to the target library
         llama
