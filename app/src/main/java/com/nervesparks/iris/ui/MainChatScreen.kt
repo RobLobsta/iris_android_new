@@ -111,9 +111,10 @@ import androidx.compose.ui.window.Dialog
 import com.nervesparks.iris.Downloadable
 import com.nervesparks.iris.LinearGradient
 import com.nervesparks.iris.MainViewModel
-
 import com.nervesparks.iris.R
 import com.nervesparks.iris.ui.components.ChatMessageList
+import androidx.compose.material.icons.filled.DataObject
+import androidx.compose.material.icons.filled.Settings
 import com.nervesparks.iris.ui.components.DownloadModal
 import com.nervesparks.iris.ui.components.LoadingModal
 
@@ -187,6 +188,30 @@ fun MainChatScreen (
 
             // Screen content
             Column() {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    val context = LocalContext.current
+                    IconButton(onClick = {
+                        context.startActivity(Intent(context, com.nervesparks.iris.QuantizeActivity::class.java))
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Quantize"
+                        )
+                    }
+                    IconButton(onClick = {
+                        context.startActivity(Intent(context, com.nervesparks.iris.EmbeddingActivity::class.java))
+                    }) {
+                        Icon(
+                            imageVector = Icons.Filled.DataObject,
+                            contentDescription = "Embedding"
+                        )
+                    }
+                }
 
 
                 // Show modal if required

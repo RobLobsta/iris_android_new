@@ -94,6 +94,60 @@ bool is_valid_utf8(const char * string) {
     return true;
 }
 
+static void batch_add_seq(llama_batch & batch, const std::vector<int32_t> & tokens, llama_seq_id seq_id) {
+    size_t n_tokens = tokens.size();
+    for (size_t i = 0; i < n_tokens; i++) {
+        common_batch_add(batch, tokens[i], i, { seq_id }, true);
+    }
+}
+
+extern "C"
+JNIEXPORT jfloatArray JNICALL
+Java_android_llama_cpp_LLamaAndroid_embedding(
+        JNIEnv *env,
+        jobject,
+        jlong context_pointer,
+        jstring jtext
+) {
+    const auto text = env->GetStringUTFChars(jtext, 0);
+    const auto context = reinterpret_cast<llama_context *>(context_pointer);
+    const auto model = llama_get_model(context);
+
+    const bool add_bos = llama_add_bos_token(model);
+    std::vector<llama_token> tokens = common_tokenize(context, text, add_bos);
+
+    const int n_embd = llama_n_embd(model);
+    const int n_tokens = tokens.size();
+
+    if (n_tokens == 0) {
+        return env->NewFloatArray(0);
+    }
+
+    llama_batch batch = llama_batch_init(n_tokens, 0, 1);
+    batch_add_seq(batch, tokens, 0);
+
+    if (llama_decode(context, batch) != 0) {
+        LOGe("llama_decode() failed");
+        llama_batch_free(batch);
+        return env->NewFloatArray(0);
+    }
+
+    const float * embd = llama_get_embeddings_seq(context, 0);
+    if (embd == nullptr) {
+        LOGe("failed to get sequence embeddings");
+        llama_batch_free(batch);
+        return env->NewFloatArray(0);
+    }
+
+    jfloatArray result = env->NewFloatArray(n_embd);
+    env->SetFloatArrayRegion(result, 0, n_embd, embd);
+
+    llama_batch_free(batch);
+    env->ReleaseStringUTFChars(jtext, text);
+
+    return result;
+}
+
 std::string mapListToJSONString(JNIEnv *env, jobjectArray allMessages) {
     json jsonArray = json::array();
 
@@ -735,4 +789,97 @@ Java_android_llama_cpp_LLamaAndroid_perplexity(
     env->ReleaseStringUTFChars(jtext, text);
 
     return perplexity_val;
+}
+
+static const std::vector<std::pair<std::string, llama_ftype>> QUANT_OPTIONS = {
+    { "Q4_0",     LLAMA_FTYPE_MOSTLY_Q4_0     },
+    { "Q4_1",     LLAMA_FTYPE_MOSTLY_Q4_1     },
+    { "Q5_0",     LLAMA_FTYPE_MOSTLY_Q5_0     },
+    { "Q5_1",     LLAMA_FTYPE_MOSTLY_Q5_1     },
+    { "IQ2_XXS",  LLAMA_FTYPE_MOSTLY_IQ2_XXS  },
+    { "IQ2_XS",   LLAMA_FTYPE_MOSTLY_IQ2_XS   },
+    { "IQ2_S",    LLAMA_FTYPE_MOSTLY_IQ2_S    },
+    { "IQ2_M",    LLAMA_FTYPE_MOSTLY_IQ2_M    },
+    { "IQ1_S",    LLAMA_FTYPE_MOSTLY_IQ1_S    },
+    { "IQ1_M",    LLAMA_FTYPE_MOSTLY_IQ1_M    },
+    { "Q2_K",     LLAMA_FTYPE_MOSTLY_Q2_K     },
+    { "Q2_K_S",   LLAMA_FTYPE_MOSTLY_Q2_K_S   },
+    { "IQ3_XXS",  LLAMA_FTYPE_MOSTLY_IQ3_XXS  },
+    { "IQ3_S",    LLAMA_FTYPE_MOSTLY_IQ3_S    },
+    { "IQ3_M",    LLAMA_FTYPE_MOSTLY_IQ3_M    },
+    { "Q3_K",     LLAMA_FTYPE_MOSTLY_Q3_K_M   },
+    { "IQ3_XS",   LLAMA_FTYPE_MOSTLY_IQ3_XS   },
+    { "Q3_K_S",   LLAMA_FTYPE_MOSTLY_Q3_K_S   },
+    { "Q3_K_M",   LLAMA_FTYPE_MOSTLY_Q3_K_M   },
+    { "Q3_K_L",   LLAMA_FTYPE_MOSTLY_Q3_K_L   },
+    { "IQ4_NL",   LLAMA_FTYPE_MOSTLY_IQ4_NL   },
+    { "IQ4_XS",   LLAMA_FTYPE_MOSTLY_IQ4_XS   },
+    { "Q4_K",     LLAMA_FTYPE_MOSTLY_Q4_K_M   },
+    { "Q4_K_S",   LLAMA_FTYPE_MOSTLY_Q4_K_S   },
+    { "Q4_K_M",   LLAMA_FTYPE_MOSTLY_Q4_K_M   },
+    { "Q5_K",     LLAMA_FTYPE_MOSTLY_Q5_K_M   },
+    { "Q5_K_S",   LLAMA_FTYPE_MOSTLY_Q5_K_S   },
+    { "Q5_K_M",   LLAMA_FTYPE_MOSTLY_Q5_K_M   },
+    { "Q6_K",     LLAMA_FTYPE_MOSTLY_Q6_K     },
+    { "Q8_0",     LLAMA_FTYPE_MOSTLY_Q8_0     },
+    { "F16",      LLAMA_FTYPE_MOSTLY_F16      },
+    { "F32",      LLAMA_FTYPE_ALL_F32         },
+};
+
+static bool try_parse_ftype(const std::string & ftype_str_in, llama_ftype & ftype) {
+    std::string ftype_str;
+    for (char ch : ftype_str_in) {
+        ftype_str += std::toupper(ch);
+    }
+    for (auto & it : QUANT_OPTIONS) {
+        if (it.first == ftype_str) {
+            ftype = it.second;
+            return true;
+        }
+    }
+    try {
+        int ftype_int = std::stoi(ftype_str);
+        for (auto & it : QUANT_OPTIONS) {
+            if (it.second == ftype_int) {
+                ftype = it.second;
+                return true;
+            }
+        }
+    }
+    catch (...) {
+        // stoi failed
+    }
+    return false;
+}
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_android_llama_cpp_LLamaAndroid_quantizeNative(
+        JNIEnv *env,
+        jobject,
+        jstring j_fname_inp,
+        jstring j_fname_out,
+        jstring j_ftype_str
+) {
+    const char * fname_inp = env->GetStringUTFChars(j_fname_inp, nullptr);
+    const char * fname_out = env->GetStringUTFChars(j_fname_out, nullptr);
+    const char * ftype_str_c = env->GetStringUTFChars(j_ftype_str, nullptr);
+
+    llama_model_quantize_params params = llama_model_quantize_default_params();
+    if (!try_parse_ftype(ftype_str_c, params.ftype)) {
+        LOGe("Invalid ftype '%s'", ftype_str_c);
+        return false;
+    }
+    params.nthread = std::max(1, (int) sysconf(_SC_NPROCESSORS_ONLN) - 2);
+
+    if (llama_model_quantize(fname_inp, fname_out, &params)) {
+        LOGe("failed to quantize model from '%s'", fname_inp);
+        return false;
+    }
+
+    env->ReleaseStringUTFChars(j_fname_inp, fname_inp);
+    env->ReleaseStringUTFChars(j_fname_out, fname_out);
+    env->ReleaseStringUTFChars(j_ftype_str, ftype_str_c);
+
+    return true;
 }
