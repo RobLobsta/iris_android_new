@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 import java.util.UUID
@@ -59,6 +60,7 @@ class MainViewModel(private val llamaAndroid: LLamaAndroid = LLamaAndroid.instan
     var topP by mutableStateOf(0f)
     var topK by mutableStateOf(0)
     var temp by mutableStateOf(0f)
+    var perplexity by mutableStateOf(false)
 
     var allModels by mutableStateOf(
         listOf(
@@ -490,6 +492,9 @@ class MainViewModel(private val llamaAndroid: LLamaAndroid = LLamaAndroid.instan
         llamaAndroid.stopTextGeneration()
     }
 
+    suspend fun perplexity(text: String): Double {
+        return llamaAndroid.perplexity(text)
+    }
 }
 
 fun sentThreadsValue(){

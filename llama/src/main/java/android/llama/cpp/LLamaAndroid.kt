@@ -126,7 +126,20 @@ class LLamaAndroid {
 
     private external fun get_eot_str(model: Long): String
 
+    private external fun perplexity(context: Long, text: String): Double
 
+    suspend fun perplexity(text: String): Double {
+        return withContext(runLoop) {
+            when (val state = threadLocalState.get()) {
+                is State.Loaded -> {
+                    Log.d(tag, "perplexity(): $state")
+                    perplexity(state.context, text)
+                }
+
+                else -> throw IllegalStateException("No model loaded")
+            }
+        }
+    }
 
     suspend fun bench(pp: Int, tg: Int, pl: Int, nr: Int = 1): String {
         return withContext(runLoop) {

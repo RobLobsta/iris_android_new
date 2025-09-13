@@ -101,6 +101,26 @@ fun ParametersScreen(viewModel: MainViewModel) {
 
                 item {
                     SettingSection(
+                        title = "Perplexity",
+                        description = "Enable to calculate perplexity"
+                    ) {
+                        androidx.compose.material.Switch(
+                            checked = viewModel.perplexity,
+                            onCheckedChange = { viewModel.perplexity = it },
+                            colors = androidx.compose.material.SwitchDefaults.colors(
+                                checkedThumbColor = Color(0xFF2563EB),
+                                checkedTrackColor = Color(0xFF2563EB).copy(alpha = 0.5f),
+                                uncheckedThumbColor = Color.Gray,
+                                uncheckedTrackColor = Color.Gray.copy(alpha = 0.5f)
+                            )
+                        )
+                    }
+                }
+
+                item { SectionDivider() }
+
+                item {
+                    SettingSection(
                         title = "Temperature",
                         description = "Adjust randomness (0.0 - 1.0)"
                     ) {

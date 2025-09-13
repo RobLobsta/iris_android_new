@@ -6,8 +6,11 @@
 #include <unistd.h>
 #include "llama.h"
 #include "common.h"
+#include "ggml.h"
 #define JSON_ASSERT GGML_ASSERT
 #include "json.hpp"
+#include <vector>
+#include <thread>
 
 using json = nlohmann::ordered_json;
 
@@ -662,4 +665,74 @@ Java_android_llama_cpp_LLamaAndroid_get_1eot_1str(JNIEnv *env, jobject , jlong j
 
      return env->NewStringUTF(piece.c_str());
 
+}
+
+static double calculate_perplexity(llama_context * ctx, const std::string& text) {
+    const bool add_bos = llama_add_bos_token(llama_get_model(ctx));
+    std::vector<llama_token> tokens = common_tokenize(ctx, text, add_bos);
+
+    const int n_ctx = llama_n_ctx(ctx);
+    if (tokens.size() < 2) {
+        return 0.0;
+    }
+    if (tokens.size() > n_ctx) {
+        LOGe("perplexity: text is too long for the context size (%zu > %d)", tokens.size(), n_ctx);
+        return 0.0;
+    }
+
+    double nll = 0.0;
+    int count = 0;
+
+    const int n_batch = 512;
+    const int n_vocab = llama_n_vocab(llama_get_model(ctx));
+
+    for (size_t i = 1; i < tokens.size(); ++i) {
+        llama_batch batch = llama_batch_init(i, 0, 1);
+
+        for (size_t j = 0; j < i; ++j) {
+            common_batch_add(batch, tokens[j], j, { 0 }, false);
+        }
+        batch.logits[batch.n_tokens - 1] = true;
+
+        if (llama_decode(ctx, batch) != 0) {
+            LOGe("llama_decode() failed");
+            llama_batch_free(batch);
+            return 0.0;
+        }
+
+        const float * logits = llama_get_logits_ith(ctx, batch.n_tokens - 1);
+        double sum_exp = 0.0;
+        for (int k = 0; k < n_vocab; ++k) {
+            sum_exp += exp(logits[k]);
+        }
+        const float prob = exp(logits[tokens[i]]) / sum_exp;
+        nll += -log(prob);
+        count++;
+
+        llama_batch_free(batch);
+    }
+
+    if (count == 0) {
+        return 0.0;
+    }
+
+    return exp(nll / count);
+}
+
+extern "C"
+JNIEXPORT jdouble JNICALL
+Java_android_llama_cpp_LLamaAndroid_perplexity(
+        JNIEnv *env,
+        jobject,
+        jlong context_pointer,
+        jstring jtext
+) {
+    const auto text = env->GetStringUTFChars(jtext, 0);
+    const auto context = reinterpret_cast<llama_context *>(context_pointer);
+
+    double perplexity_val = calculate_perplexity(context, text);
+
+    env->ReleaseStringUTFChars(jtext, text);
+
+    return perplexity_val;
 }
