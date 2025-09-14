@@ -17,6 +17,18 @@
 
 using json = nlohmann::ordered_json;
 
+JavaVM* g_jvm;
+jobject g_callback;
+jmethodID g_on_token_callback;
+
+std::thread g_completion_thread;
+bool g_completion_thread_running = false;
+
+JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
+    g_jvm = vm;
+    return JNI_VERSION_1_6;
+}
+
 template <typename T>
 static T json_value(const json & body, const std::string & key, const T & default_value) {
     // Fallback null to default value
@@ -95,6 +107,97 @@ bool is_valid_utf8(const char * string) {
     }
 
     return true;
+}
+
+void stream_completion(
+        JNIEnv * env,
+        jlong context_pointer,
+        jlong batch_pointer,
+        jlong sampler_pointer,
+        jint n_len,
+        jobject intvar_ncur
+) {
+    const auto context = reinterpret_cast<llama_context *>(context_pointer);
+    const auto batch   = reinterpret_cast<llama_batch   *>(batch_pointer);
+    const auto sampler = reinterpret_cast<llama_sampler *>(sampler_pointer);
+    const auto model = llama_get_model(context);
+
+    if (!la_int_var) la_int_var = env->GetObjectClass(intvar_ncur);
+    if (!la_int_var_value) la_int_var_value = env->GetMethodID(la_int_var, "getValue", "()I");
+    if (!la_int_var_inc) la_int_var_inc = env->GetMethodID(la_int_var, "inc", "()V");
+
+    while (g_completion_thread_running) {
+        // sample the most likely token
+        const auto new_token_id = llama_sampler_sample(sampler, context, -1);
+
+        const auto eot = llama_token_eot(model);
+
+        const auto n_cur = env->CallIntMethod(intvar_ncur, la_int_var_value);
+        if (llama_token_is_eog(model, new_token_id) || n_cur >= n_len || new_token_id == eot) {
+            g_completion_thread_running = false;
+            break;
+        }
+
+        auto new_token_chars = common_token_to_piece(context, new_token_id);
+        cached_token_chars += new_token_chars;
+
+        if (is_valid_utf8(cached_token_chars.c_str())) {
+            jstring new_token = env->NewStringUTF(cached_token_chars.c_str());
+            env->CallVoidMethod(g_callback, g_on_token_callback, new_token);
+            env->DeleteLocalRef(new_token);
+            cached_token_chars.clear();
+        }
+
+        common_batch_clear(*batch);
+        common_batch_add(*batch, new_token_id, n_cur, { 0 }, true);
+
+        env->CallVoidMethod(intvar_ncur, la_int_var_inc);
+
+        if (llama_decode(context, *batch) != 0) {
+            LOGe("llama_decode() returned null");
+            g_completion_thread_running = false;
+            break;
+        }
+    }
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_android_llama_cpp_LLamaAndroid_completion_1stream(
+        JNIEnv * env,
+        jobject,
+        jlong context_pointer,
+        jlong batch_pointer,
+        jlong sampler_pointer,
+        jint n_len,
+        jobject intvar_ncur,
+        jobject callback
+) {
+    if (g_completion_thread_running) {
+        return;
+    }
+
+    g_callback = env->NewGlobalRef(callback);
+    jclass callback_class = env->GetObjectClass(g_callback);
+    g_on_token_callback = env->GetMethodID(callback_class, "onToken", "(Ljava/lang/String;)V");
+
+    g_completion_thread_running = true;
+    g_completion_thread = std::thread([=]() {
+        JNIEnv *thread_env;
+        g_jvm->AttachCurrentThread(&thread_env, nullptr);
+        stream_completion(thread_env, context_pointer, batch_pointer, sampler_pointer, n_len, intvar_ncur);
+        g_jvm->DetachCurrentThread();
+        env->DeleteGlobalRef(g_callback);
+    });
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_android_llama_cpp_LLamaAndroid_stop_1completion(JNIEnv*, jobject) {
+    g_completion_thread_running = false;
+    if (g_completion_thread.joinable()) {
+        g_completion_thread.join();
+    }
 }
 
 static void batch_add_seq(llama_batch & batch, const std::vector<int32_t> & tokens, llama_seq_id seq_id) {

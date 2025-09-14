@@ -18,12 +18,10 @@ android {
         }
         externalNativeBuild {
             cmake {
-                arguments += "-DLLAMA_BUILD_COMMON=ON"
-                arguments += "-DCMAKE_BUILD_TYPE=Release"
-                cppFlags += listOf()
-                arguments += listOf()
-
-                cppFlags("")
+                arguments.addAll(listOf(
+                    "-DLLAMA_BUILD_COMMON=ON",
+                    "-DCMAKE_BUILD_TYPE=Release"
+                ))
             }
         }
     }
