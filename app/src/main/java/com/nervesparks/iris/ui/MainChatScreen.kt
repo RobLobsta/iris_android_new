@@ -15,13 +15,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,7 +33,6 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -53,8 +49,11 @@ import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Switch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -68,15 +67,20 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SheetState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.ripple
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -102,33 +106,28 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
-import androidx.compose.ui.window.Dialog
 import com.nervesparks.iris.Downloadable
 import com.nervesparks.iris.LinearGradient
 import com.nervesparks.iris.MainViewModel
 import com.nervesparks.iris.R
-import androidx.compose.material.icons.filled.DataObject
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import com.nervesparks.iris.ui.components.DownloadModal
 import com.nervesparks.iris.ui.components.CodeBlockMessage
+import com.nervesparks.iris.ui.components.DownloadModal
 import com.nervesparks.iris.ui.components.LoadingModal
 import com.nervesparks.iris.ui.components.UserOrAssistantMessage
 import kotlinx.coroutines.launch
 import java.io.File
 
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun MainChatScreen (
+fun MainChatScreen(
     onNextButtonClicked: () -> Unit,
     viewModel: MainViewModel,
     clipboard: ClipboardManager,
     dm: DownloadManager,
     models: List<Downloadable>,
     extFileDir: File?,
-    onVoiceClicked: () -> Unit
-){
+    onVoiceClicked: () -> Unit,
+) {
     val kc = LocalSoftwareKeyboardController.current
     val windowInsets = WindowInsets.ime
     val focusManager = LocalFocusManager.current
@@ -143,7 +142,7 @@ fun MainChatScreen (
         "Provide a simple and polite Spanish translation of 'Excuse me, can you help me?' with explanation.",
         "List the top 5 science fiction novels that have most influenced modern technological thinking",
         "List security tips to protect personal information online.",
-        "Recommend three books that can improve communication skills."
+        "Recommend three books that can improve communication skills.",
     )
 
     val allModelsExist = models.all { model -> model.destination.exists() }
@@ -151,16 +150,15 @@ fun MainChatScreen (
         "Explains complex topics simply.",
         "Remembers previous inputs.",
         "May sometimes be inaccurate.",
-        "Unable to provide current affairs due to no internet connectivity."
+        "Unable to provide current affairs due to no internet connectivity.",
     )
     var recognizedText by remember { mutableStateOf("") }
     val speechRecognizerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) {
             result ->
         val data = result.data
         val results = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-        recognizedText = results?.get(0)?:""
+        recognizedText = results?.get(0) ?: ""
         viewModel.updateMessage(recognizedText)
-
     }
 
     val context = LocalContext.current
@@ -179,10 +177,6 @@ fun MainChatScreen (
         }
     }
 
-
-
-
-
     val focusRequester = FocusRequester()
     var isFocused by remember { mutableStateOf(false) }
     var textFieldBounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
@@ -193,76 +187,69 @@ fun MainChatScreen (
     val uiState by viewModel.uiState.collectAsState()
 
     Box(
-        modifier = Modifier.fillMaxSize()
-
+        modifier = Modifier.fillMaxSize(),
 
     ) {
         LinearGradient()
 
-
-
-            // Screen content
-            Column() {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val context = LocalContext.current
-                    Text("RAG", color = Color.White)
-                    Switch(
-                        checked = uiState.isRagEnabled,
-                        onCheckedChange = { viewModel.toggleRag() },
-                        enabled = uiState.isRagReady
+        // Screen content
+        Column() {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val context = LocalContext.current
+                Text("RAG", color = Color.White)
+                Switch(
+                    checked = uiState.isRagEnabled,
+                    onCheckedChange = { viewModel.toggleRag() },
+                    enabled = uiState.isRagReady,
+                )
+                IconButton(onClick = {
+                    context.startActivity(Intent(context, com.nervesparks.iris.QuantizeActivity::class.java))
+                }) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "Quantize",
                     )
-                    IconButton(onClick = {
-                        context.startActivity(Intent(context, com.nervesparks.iris.QuantizeActivity::class.java))
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = "Quantize"
-                        )
-                    }
-                    IconButton(onClick = {
-                        context.startActivity(Intent(context, com.nervesparks.iris.EmbeddingActivity::class.java))
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.DataObject,
-                            contentDescription = "Embedding"
-                        )
-                    }
-                    IconButton(onClick = {
-                        context.startActivity(Intent(context, com.nervesparks.iris.SearchActivity::class.java))
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.Search,
-                            contentDescription = "Search"
-                        )
-                    }
                 }
-
-
-                // Show modal if required
-                if (viewModel.showModal) {
-                    // Modal dialog to show download options
-                    DownloadModal(viewModel = viewModel, dm = dm, models = models)
-
+                IconButton(onClick = {
+                    context.startActivity(Intent(context, com.nervesparks.iris.EmbeddingActivity::class.java))
+                }) {
+                    Icon(
+                        imageVector = Icons.Filled.DataObject,
+                        contentDescription = "Embedding",
+                    )
                 }
-
-                if (viewModel.showAlert) {
-                    // Modal dialog to show download options
-                    LoadingModal(viewModel)
+                IconButton(onClick = {
+                    context.startActivity(Intent(context, com.nervesparks.iris.SearchActivity::class.java))
+                }) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = "Search",
+                    )
                 }
+            }
 
-                Column {
+            // Show modal if required
+            if (viewModel.showModal) {
+                // Modal dialog to show download options
+                DownloadModal(viewModel = viewModel, dm = dm, models = models)
+            }
 
+            if (viewModel.showAlert) {
+                // Modal dialog to show download options
+                LoadingModal(viewModel)
+            }
 
-                    val scrollState = rememberLazyListState()
+            Column {
+                val scrollState = rememberLazyListState()
 
-
-                    Box(modifier = Modifier
+                Box(
+                    modifier = Modifier
                         .weight(1f)
                         .pointerInput(Unit) {
                             detectTapGestures(
@@ -273,342 +260,324 @@ fun MainChatScreen (
                                 onLongPress = { kc?.hide() },
                                 onPress = { kc?.hide() },
 
-
-                                )
-                        }) {
-
-                        if (chatMessages.isEmpty() && !viewModel.showModal && !viewModel.showAlert) {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxSize() // Take up the whole screen
-                                    .wrapContentHeight(Alignment.CenterVertically),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
+                            )
+                        },
+                ) {
+                    if (chatMessages.isEmpty() && !viewModel.showModal && !viewModel.showAlert) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize() // Take up the whole screen
+                                .wrapContentHeight(Alignment.CenterVertically),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
 //                                item { Spacer(Modifier.height(55.dp).fillMaxWidth()) }
-                                // Header Text
-                                item {
-                                    Text(
-                                        text = "Hello, Ask me " + "Anything",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = Color.White,
-                                            fontWeight = FontWeight.W300,
-                                            letterSpacing = 1.sp,
-                                            fontSize = 50.sp,
-                                            lineHeight = 60.sp
+                            // Header Text
+                            item {
+                                Text(
+                                    text = "Hello, Ask me " + "Anything",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = Color.White,
+                                        fontWeight = FontWeight.W300,
+                                        letterSpacing = 1.sp,
+                                        fontSize = 50.sp,
+                                        lineHeight = 60.sp,
+                                    ),
+                                    fontFamily = FontFamily.SansSerif,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
+                                        .wrapContentHeight(),
+                                )
+                            }
+
+                            // Items for Prompts_Home
+                            items(Prompts_Home.size) { index ->
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(60.dp)
+                                        .padding(8.dp)
+                                        .background(
+                                            Color(0xFF010825),
+                                            shape = RoundedCornerShape(20.dp),
                                         ),
-                                        fontFamily = FontFamily.SansSerif,
-                                        textAlign = TextAlign.Center,
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(16.dp)
-                                            .wrapContentHeight()
-                                    )
-                                }
-
-                                // Items for Prompts_Home
-                                items(Prompts_Home.size) { index ->
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(60.dp)
-                                            .padding(8.dp)
-                                            .background(
-                                                Color(0xFF010825),
-                                                shape = RoundedCornerShape(20.dp)
-                                            )
+                                            .padding(horizontal = 8.dp),
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
+                                        // Circle Icon
+                                        Box(
                                             modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 8.dp)
+                                                .size(20.dp) // Icon size
+                                                .background(Color.White, shape = CircleShape)
+                                                .padding(4.dp),
+                                            contentAlignment = Alignment.Center,
                                         ) {
-                                            // Circle Icon
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(20.dp) // Icon size
-                                                    .background(Color.White, shape = CircleShape)
-                                                    .padding(4.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(id = R.drawable.info_svgrepo_com),
-                                                    contentDescription = null,
-                                                    tint = Color.Black
-                                                )
-                                            }
-
-                                            Spacer(modifier = Modifier.width(12.dp))
-
-                                            // Text
-                                            Text(
-                                                text = Prompts_Home.getOrNull(index) ?: "",
-                                                style = MaterialTheme.typography.bodySmall.copy(color = Color.White),
-                                                textAlign = TextAlign.Start, // Left align the text
-                                                fontSize = 12.sp,
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .padding(horizontal = 8.dp)
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.info_svgrepo_com),
+                                                contentDescription = null,
+                                                tint = Color.Black,
                                             )
                                         }
-                                    }
-                                }
 
-                                item{
+                                        Spacer(modifier = Modifier.width(12.dp))
 
-                                }
-                            }
-                        }
-                        else {
-
-                            LazyColumn(state = scrollState) {
-                                itemsIndexed(chatMessages) { index, message ->
-                                    val role = if (message.isUser) "user" else "assistant"
-                                    val content = message.text
-                                    val trimmedMessage = if (content.endsWith("\n")) {
-                                        content.substring(startIndex = 0, endIndex = content.length - 1)
-                                    } else {
-                                        content
-                                    }
-
-                                    if (role == "codeBlock") {
-                                        CodeBlockMessage(content = trimmedMessage)
-                                    } else {
-                                        UserOrAssistantMessage(
-                                            role = role,
-                                            message = trimmedMessage,
-                                            onLongClick = {
-                                                // Your existing onLongClick logic
-                                            }
+                                        // Text
+                                        Text(
+                                            text = Prompts_Home.getOrNull(index) ?: "",
+                                            style = MaterialTheme.typography.bodySmall.copy(color = Color.White),
+                                            textAlign = TextAlign.Start, // Left align the text
+                                            fontSize = 12.sp,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(horizontal = 8.dp),
                                         )
                                     }
                                 }
                             }
 
-                            ScrollToBottomButton(
-                                scrollState = scrollState,
-                                messages = chatMessages,
-                                viewModel = viewModel
-                            )
-
+                            item {
+                            }
                         }
+                    } else {
+                        LazyColumn(state = scrollState) {
+                            itemsIndexed(chatMessages) { index, message ->
+                                val role = if (message.isUser) "user" else "assistant"
+                                val content = message.text
+                                val trimmedMessage = if (content.endsWith("\n")) {
+                                    content.substring(startIndex = 0, endIndex = content.length - 1)
+                                } else {
+                                    content
+                                }
 
-                        //chat section ends here
-                    }
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp), // Reduced space between cards
-                        contentPadding = PaddingValues(vertical = 8.dp)
-                    ) {
-                        items(Prompts.size) { index ->
-                            if(chatMessages.isEmpty()){
-                                Card(
-                                    modifier = Modifier
-                                        .height(100.dp)
-                                        .clickable {
-                                            viewModel.updateMessage(Prompts[index])
-                                            focusRequester.requestFocus()
-                                        }
-                                        .padding(horizontal = 8.dp),
-                                    shape = MaterialTheme.shapes.medium,
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF030815))
-                                ) {
-
-                                    Text(
-                                        text = Prompts[index],
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = Color(0xFFA0A0A5),
-                                            fontSize = 12.sp,
-                                        ),
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier
-                                            .width(200.dp)
-                                            .height(100.dp)
-                                            .padding(horizontal = 15.dp, vertical = 12.dp)
-//                                                .align(Alignment.Center)
+                                if (role == "codeBlock") {
+                                    CodeBlockMessage(content = trimmedMessage)
+                                } else {
+                                    UserOrAssistantMessage(
+                                        role = role,
+                                        message = trimmedMessage,
+                                        onLongClick = {
+                                            // Your existing onLongClick logic
+                                        },
                                     )
-
                                 }
                             }
                         }
+
+                        ScrollToBottomButton(
+                            scrollState = scrollState,
+                            messages = chatMessages,
+                            viewModel = viewModel,
+                        )
                     }
-                    //Prompt input field
-                    Box(
+
+                    // chat section ends here
+                }
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp), // Reduced space between cards
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                ) {
+                    items(Prompts.size) { index ->
+                        if (chatMessages.isEmpty()) {
+                            Card(
+                                modifier = Modifier
+                                    .height(100.dp)
+                                    .clickable {
+                                        viewModel.updateMessage(Prompts[index])
+                                        focusRequester.requestFocus()
+                                    }
+                                    .padding(horizontal = 8.dp),
+                                shape = MaterialTheme.shapes.medium,
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF030815)),
+                            ) {
+                                Text(
+                                    text = Prompts[index],
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = Color(0xFFA0A0A5),
+                                        fontSize = 12.sp,
+                                    ),
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .width(200.dp)
+                                        .height(100.dp)
+                                        .padding(horizontal = 15.dp, vertical = 12.dp),
+//                                                .align(Alignment.Center)
+                                )
+                            }
+                        }
+                    }
+                }
+                // Prompt input field
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF050B16)),
+
+                ) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFF050B16))
-
+                            .padding(start = 5.dp, top = 8.dp, bottom = 12.dp, end = 5.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
 
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 5.dp, top = 8.dp, bottom = 12.dp, end = 5.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-
-                            ) {
-
-
-                            IconButton(onClick = {
-                                onVoiceClicked()
-                                focusManager.clearFocus()
-                            }) {
-                                Icon(
-                                    modifier = Modifier
-                                        .size(25.dp)
-                                        .weight(1f),
-                                    painter = painterResource(id = R.drawable.microphone_new_svgrepo_com),
-                                    contentDescription = "Mic",
-                                    tint = Color(0xFFDDDDE4) // Optional: set the color of the icon
-                                )
-                            }
-
-                            IconButton(onClick = {
-                                imagePickerLauncher.launch("image/*")
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.AddAPhoto,
-                                    contentDescription = "Add Photo",
-                                    tint = Color(0xFFDDDDE4)
-                                )
-                            }
-
-                            IconButton(onClick = {
-                                mmprojPickerLauncher.launch("*/*")
-                            }) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                                    contentDescription = "Add Mmproj",
-                                    tint = Color(0xFFDDDDE4)
-                                )
-                            }
-
-
-
-                            val dragSelection = remember { mutableStateOf<TextRange?>(null) }
-                            val lastKnownText = remember { mutableStateOf(viewModel.message) }
-
-                            val textFieldValue = remember {
-                                mutableStateOf(
-                                    TextFieldValue(
-                                        text = viewModel.message,
-                                        selection = TextRange(viewModel.message.length) // Ensure cursor starts at the end
-                                    )
-                                )
-                            }
-
-                            TextField(
-
-                                value = textFieldValue.value.copy(
-                                    text = viewModel.message,
-                                    selection = when {
-                                        viewModel.message != lastKnownText.value -> {
-                                            // If the message has changed programmatically,
-                                            // preserve the current cursor/selection position
-                                            textFieldValue.value.selection
-                                        }
-                                        else -> {
-                                            // Otherwise, use the drag selection or current selection
-                                            dragSelection.value ?: textFieldValue.value.selection
-                                        }
-                                    }
-                                ),
-                                onValueChange = { newValue ->
-                                    // Update drag selection when the user drags or selects
-                                    dragSelection.value = if (newValue.text == textFieldValue.value.text) {
-                                        newValue.selection
-                                    } else {
-                                        null // Reset drag selection if the text changes programmatically
-                                    }
-
-
-                                    // Update the local state
-                                    textFieldValue.value = newValue
-
-                                    // Save the last known text and update ViewModel
-                                    lastKnownText.value = newValue.text
-                                    viewModel.updateMessage(newValue.text)
-                                },
-                                placeholder = { Text("Message") },
+                        IconButton(onClick = {
+                            onVoiceClicked()
+                            focusManager.clearFocus()
+                        }) {
+                            Icon(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .onGloballyPositioned { coordinates ->
-                                        textFieldBounds = coordinates.boundsInRoot()
-                                    }
-                                    .focusRequester(focusRequester)
-                                    .onFocusChanged { focusState ->
-                                        isFocused = focusState.isFocused
-                                    },
-                                shape = RoundedCornerShape(size = 18.dp),
-                                colors = TextFieldDefaults.colors(
-                                    focusedTextColor = Color(0xFFBECBD1),
-                                    unfocusedTextColor = Color(0xFFBECBD1),
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent, // Optional, makes the indicator disappear
-                                    focusedLabelColor = Color(0xFF626568),
-                                    cursorColor = Color(0xFF626568),
-                                    unfocusedContainerColor = Color(0xFF171E2C),
-                                    focusedContainerColor = Color(0xFF22314A)
-                                )
+                                    .size(25.dp)
+                                    .weight(1f),
+                                painter = painterResource(id = R.drawable.microphone_new_svgrepo_com),
+                                contentDescription = "Mic",
+                                tint = Color(0xFFDDDDE4), // Optional: set the color of the icon
                             )
+                        }
 
+                        IconButton(onClick = {
+                            imagePickerLauncher.launch("image/*")
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.AddAPhoto,
+                                contentDescription = "Add Photo",
+                                tint = Color(0xFFDDDDE4),
+                            )
+                        }
 
+                        IconButton(onClick = {
+                            mmprojPickerLauncher.launch("*/*")
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                contentDescription = "Add Mmproj",
+                                tint = Color(0xFFDDDDE4),
+                            )
+                        }
 
+                        val dragSelection = remember { mutableStateOf<TextRange?>(null) }
+                        val lastKnownText = remember { mutableStateOf(viewModel.message) }
 
-                            if (!viewModel.getIsSending()) {
-                                val context = LocalContext.current
+                        val textFieldValue = remember {
+                            mutableStateOf(
+                                TextFieldValue(
+                                    text = viewModel.message,
+                                    selection = TextRange(viewModel.message.length), // Ensure cursor starts at the end
+                                ),
+                            )
+                        }
 
-                                IconButton(onClick = {
-                                    if(viewModel.loadedModelName.value == ""){
+                        TextField(
+
+                            value = textFieldValue.value.copy(
+                                text = viewModel.message,
+                                selection = when {
+                                    viewModel.message != lastKnownText.value -> {
+                                        // If the message has changed programmatically,
+                                        // preserve the current cursor/selection position
+                                        textFieldValue.value.selection
+                                    }
+                                    else -> {
+                                        // Otherwise, use the drag selection or current selection
+                                        dragSelection.value ?: textFieldValue.value.selection
+                                    }
+                                },
+                            ),
+                            onValueChange = { newValue ->
+                                // Update drag selection when the user drags or selects
+                                dragSelection.value = if (newValue.text == textFieldValue.value.text) {
+                                    newValue.selection
+                                } else {
+                                    null // Reset drag selection if the text changes programmatically
+                                }
+
+                                // Update the local state
+                                textFieldValue.value = newValue
+
+                                // Save the last known text and update ViewModel
+                                lastKnownText.value = newValue.text
+                                viewModel.updateMessage(newValue.text)
+                            },
+                            placeholder = { Text("Message") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .onGloballyPositioned { coordinates ->
+                                    textFieldBounds = coordinates.boundsInRoot()
+                                }
+                                .focusRequester(focusRequester)
+                                .onFocusChanged { focusState ->
+                                    isFocused = focusState.isFocused
+                                },
+                            shape = RoundedCornerShape(size = 18.dp),
+                            colors = TextFieldDefaults.colors(
+                                focusedTextColor = Color(0xFFBECBD1),
+                                unfocusedTextColor = Color(0xFFBECBD1),
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent, // Optional, makes the indicator disappear
+                                focusedLabelColor = Color(0xFF626568),
+                                cursorColor = Color(0xFF626568),
+                                unfocusedContainerColor = Color(0xFF171E2C),
+                                focusedContainerColor = Color(0xFF22314A),
+                            ),
+                        )
+
+                        if (!viewModel.getIsSending()) {
+                            val context = LocalContext.current
+
+                            IconButton(
+                                onClick = {
+                                    if (viewModel.loadedModelName.value == "") {
                                         focusManager.clearFocus()
                                         Toast.makeText(context, "Load A Model First", Toast.LENGTH_SHORT).show()
-                                    }
-                                    else {
+                                    } else {
                                         viewModel.send()
                                         focusManager.clearFocus()
                                     }
-                                }
-                                ) {
-                                    Icon(
-                                        modifier = Modifier
-                                            .size(30.dp)
-                                            .weight(1f),
-                                        painter = painterResource(id = R.drawable.send_2_svgrepo_com),
-                                        contentDescription = "Send",
-                                        tint = Color(0xFFDDDDE4)
-                                    )
-                                }
-                            } else if (viewModel.getIsSending()) {
-                                IconButton(onClick = {
-                                    viewModel.stop() }) {
-                                    Icon(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .size(28.dp),
-                                        painter = painterResource(id = R.drawable.square_svgrepo_com),
-                                        contentDescription = "Stop",
-                                        tint = Color(0xFFDDDDE4)
-                                    )
-                                }
+                                },
+                            ) {
+                                Icon(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .weight(1f),
+                                    painter = painterResource(id = R.drawable.send_2_svgrepo_com),
+                                    contentDescription = "Send",
+                                    tint = Color(0xFFDDDDE4),
+                                )
                             }
-
+                        } else if (viewModel.getIsSending()) {
+                            IconButton(onClick = {
+                                viewModel.stop()
+                            }) {
+                                Icon(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .size(28.dp),
+                                    painter = painterResource(id = R.drawable.square_svgrepo_com),
+                                    contentDescription = "Stop",
+                                    tint = Color(0xFFDDDDE4),
+                                )
+                            }
                         }
                     }
-
-
                 }
             }
-
+        }
     }
-
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsBottomSheet(
     viewModel: MainViewModel,
-    onDismiss: () -> Unit) {
+    onDismiss: () -> Unit,
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sheetScrollState = rememberLazyListState()
     ModalBottomSheet(
@@ -618,8 +587,8 @@ fun SettingsBottomSheet(
     ) {
         Column(
             modifier = Modifier
-                .padding(10.dp)
-        ){
+                .padding(10.dp),
+        ) {
             Text(
                 text = "Settings",
                 color = Color.White,
@@ -627,10 +596,10 @@ fun SettingsBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
             LazyColumn(state = sheetScrollState) {
-                item{
+                item {
                     Box(
                         modifier = Modifier
                             .background(
@@ -640,11 +609,11 @@ fun SettingsBottomSheet(
                             .border(
                                 border = BorderStroke(
                                     width = 1.dp,
-                                    color = Color.LightGray.copy(alpha = 0.5f)
+                                    color = Color.LightGray.copy(alpha = 0.5f),
                                 ),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(8.dp),
                             )
-                            .padding(16.dp)
+                            .padding(16.dp),
                     ) {
                         Column {
                             Text(
@@ -655,12 +624,11 @@ fun SettingsBottomSheet(
 
                             Text(
                                 text = "${viewModel.user_thread.toInt()}",
-                                color = Color.White
+                                color = Color.White,
                             )
                             Slider(
                                 value = viewModel.user_thread,
                                 onValueChange = {
-
                                     viewModel.user_thread = it
                                 },
                                 valueRange = 0f..8f,
@@ -668,7 +636,7 @@ fun SettingsBottomSheet(
                                 colors = SliderDefaults.colors(
                                     thumbColor = Color(0xFF6200EE),
                                     activeTrackColor = Color(0xFF6200EE),
-                                    inactiveTrackColor = Color.Gray
+                                    inactiveTrackColor = Color.Gray,
                                 ),
                             )
                             Spacer(modifier = Modifier.height(15.dp))
@@ -688,21 +656,21 @@ fun SettingsBottomSheet(
                                 shape = RoundedCornerShape(8.dp), // Slightly more rounded corners
                                 elevation = ButtonDefaults.buttonElevation(
                                     defaultElevation = 6.dp,
-                                    pressedElevation = 3.dp
+                                    pressedElevation = 3.dp,
                                 ),
                                 onClick = {
                                     viewModel.currentDownloadable?.destination?.path?.let {
                                         viewModel.load(
-                                            it, viewModel.user_thread.toInt())
+                                            it,
+                                            viewModel.user_thread.toInt(),
+                                        )
                                     }
-                                }
+                                },
                             ) {
-
                                 Text("Save")
                             }
                         }
                     }
-
                 }
             }
         }
@@ -713,7 +681,7 @@ fun SettingsBottomSheet(
 fun ScrollToBottomButton(
     viewModel: MainViewModel,
     scrollState: LazyListState,
-    messages: List<Any>
+    messages: List<Any>,
 ) {
     val coroutineScope = rememberCoroutineScope()
 
@@ -756,12 +724,12 @@ fun ScrollToBottomButton(
 
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
+        contentAlignment = Alignment.BottomCenter,
     ) {
         AnimatedVisibility(
             visible = (canScrollDown || isAutoScrolling) && isButtonVisible, // Show button if needed
             enter = fadeIn(),
-            exit = fadeOut()
+            exit = fadeOut(),
         ) {
             FloatingActionButton(
                 onClick = {
@@ -777,27 +745,24 @@ fun ScrollToBottomButton(
                 // Ensures a circular shape
                 shape = RoundedCornerShape(percent = 50),
                 containerColor = Color.White.copy(alpha = 0.5f),
-                contentColor = Color.Black
+                contentColor = Color.Black,
             ) {
                 Icon(
                     imageVector = Icons.Filled.KeyboardArrowDown,
                     contentDescription = "Scroll to bottom",
-                    tint = Color.White // White icon for better visibility
+                    tint = Color.White, // White icon for better visibility
                 )
             }
         }
     }
 }
 
-
 @Composable
 fun ModelSelectorWithDownloadModal(
     viewModel: MainViewModel,
     downloadManager: DownloadManager,
-    extFileDir: File?
+    extFileDir: File?,
 ) {
-
-
     val context = LocalContext.current as Activity
     val coroutineScope = rememberCoroutineScope()
 
@@ -806,10 +771,11 @@ fun ModelSelectorWithDownloadModal(
     var mTextFieldSize by remember { mutableStateOf(Size.Zero) }
     var selectedModel by remember { mutableStateOf<Map<String, Any>?>(null) }
 
-    val icon = if (mExpanded)
+    val icon = if (mExpanded) {
         Icons.Filled.KeyboardArrowUp
-    else
+    } else {
         Icons.Filled.KeyboardArrowDown
+    }
 
     // Search for local .gguf models
     val localModels = remember(extFileDir) {
@@ -818,7 +784,7 @@ fun ModelSelectorWithDownloadModal(
                 mapOf(
                     "name" to file.nameWithoutExtension,
                     "source" to file.toURI().toString(),
-                    "destination" to file.name
+                    "destination" to file.name,
                 )
             } ?: emptyList()
     }
@@ -828,11 +794,9 @@ fun ModelSelectorWithDownloadModal(
     }
     viewModel.allModels = combinedModels
 
-
     Column(Modifier.padding(20.dp)) {
-
         OutlinedTextField(
-            value= viewModel.loadedModelName.value,
+            value = viewModel.loadedModelName.value,
             onValueChange = { mSelectedText = it },
             modifier = Modifier
                 .fillMaxWidth()
@@ -846,7 +810,7 @@ fun ModelSelectorWithDownloadModal(
                         },
                         onPress = {
                             mExpanded = !mExpanded
-                        }
+                        },
                     )
                 }
                 .clickable {
@@ -858,7 +822,7 @@ fun ModelSelectorWithDownloadModal(
                     icon,
                     contentDescription = "Toggle dropdown",
                     Modifier.clickable { mExpanded = !mExpanded },
-                    tint =Color(0xFFcfcfd1)
+                    tint = Color(0xFFcfcfd1),
                 )
             },
             textStyle = TextStyle(color = Color(0xFFf5f5f5)),
@@ -870,10 +834,8 @@ fun ModelSelectorWithDownloadModal(
                 focusedLabelColor = Color(0xFFcfcfd1),
                 unfocusedTextColor = Color(0xFFf5f5f5),
                 focusedTextColor = Color(0xFFf7f5f5),
-            )
+            ),
         )
-
-
 
         DropdownMenu(
             modifier = Modifier
@@ -884,7 +846,7 @@ fun ModelSelectorWithDownloadModal(
             expanded = mExpanded,
             onDismissRequest = {
                 mExpanded = false
-            }
+            },
         ) {
             viewModel.allModels.forEach { model ->
                 DropdownMenuItem(
@@ -900,12 +862,12 @@ fun ModelSelectorWithDownloadModal(
                         val downloadable = Downloadable(
                             name = model["name"].toString(),
                             source = Uri.parse(model["source"].toString()),
-                            destination = File(extFileDir, model["destination"].toString())
+                            destination = File(extFileDir, model["destination"].toString()),
                         )
 
                         viewModel.showModal = true
                         viewModel.currentDownloadable = downloadable
-                    }
+                    },
                 ) {
                     model["name"]?.let { Text(text = it, color = Color.White) }
                 }
@@ -913,7 +875,6 @@ fun ModelSelectorWithDownloadModal(
         }
 
         // Use showModal instead of switchModal
-
     }
 }
 
@@ -925,20 +886,18 @@ fun MessageBottomSheet(
     context: Context,
     viewModel: MainViewModel,
     onDismiss: () -> Unit,
-    sheetState: SheetState
+    sheetState: SheetState,
 ) {
-
-
     ModalBottomSheet(
         sheetState = sheetState,
         containerColor = Color(0xFF01081a),
-        onDismissRequest = onDismiss
+        onDismissRequest = onDismiss,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(20.dp)
-                .background(color = Color(0xFF01081a))
+                .background(color = Color(0xFF01081a)),
         ) {
             var sheetScrollState = rememberLazyListState()
 
@@ -946,7 +905,7 @@ fun MessageBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxWidth()
-                    .padding(vertical = 5.dp)
+                    .padding(vertical = 5.dp),
 
             ) {
                 // Copy Text Button
@@ -959,7 +918,7 @@ fun MessageBottomSheet(
                         clipboard.setText(AnnotatedString(message))
                         Toast.makeText(context, "Text copied!", Toast.LENGTH_SHORT).show()
                         onDismiss()
-                    }
+                    },
                 ) {
                     Text(text = "Copy Text", color = Color(0xFFA0A0A5))
                 }
@@ -973,7 +932,7 @@ fun MessageBottomSheet(
                     enabled = !viewModel.getIsSending(),
                     onClick = {
                         viewModel.toggler = !viewModel.toggler
-                    }
+                    },
                 ) {
                     Text(text = "Select Text To Copy", color = Color(0xFFA0A0A5))
                 }
@@ -993,11 +952,11 @@ fun MessageBottomSheet(
                             viewModel.stopTextToSpeech()
                         }
                         onDismiss()
-                    }
+                    },
                 ) {
                     Text(
                         text = if (viewModel.stateForTextToSpeech) "Text To Speech" else "Stop",
-                        color = Color(0xFFA0A0A5)
+                        color = Color(0xFFA0A0A5),
                     )
                 }
 
@@ -1011,11 +970,11 @@ fun MessageBottomSheet(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(color = Color.Black)
-                                        .padding(25.dp)
+                                        .padding(25.dp),
                                 ) {
                                     Text(
                                         text = AnnotatedString(message),
-                                        color = Color.White
+                                        color = Color.White,
                                     )
                                 }
                             }
@@ -1025,5 +984,4 @@ fun MessageBottomSheet(
             }
         }
     }
-
 }

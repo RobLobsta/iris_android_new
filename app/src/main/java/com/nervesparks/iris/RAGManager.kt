@@ -1,8 +1,8 @@
 package com.nervesparks.iris
 
 import android.content.Context
-import android.util.Log
 import android.llama.cpp.LLamaAndroid
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -13,7 +13,7 @@ import kotlin.math.sqrt
 class RAGManager(
     private val context: Context,
     private val llama: LLamaAndroid,
-    private val onEmbeddingsReady: () -> Unit
+    private val onEmbeddingsReady: () -> Unit,
 ) {
 
     private val knowledgeBase: List<String> = loadKnowledgeBase()

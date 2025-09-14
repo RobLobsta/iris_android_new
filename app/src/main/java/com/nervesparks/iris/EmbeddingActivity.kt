@@ -20,7 +20,7 @@ class EmbeddingActivity : ComponentActivity() {
         setContent {
             EmbeddingScreen(
                 viewModel = viewModel,
-                onGoBack = { finish() }
+                onGoBack = { finish() },
             )
         }
     }

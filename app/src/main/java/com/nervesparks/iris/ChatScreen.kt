@@ -15,13 +15,14 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -42,7 +43,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -67,7 +67,6 @@ import com.nervesparks.iris.ui.SearchResultScreen
 import com.nervesparks.iris.ui.SettingsScreen
 import java.io.File
 
-
 enum class ChatScreen(@StringRes val title: Int) {
     Start(title = R.string.app_name),
     Settings(title = R.string.settings_screen_title),
@@ -77,8 +76,6 @@ enum class ChatScreen(@StringRes val title: Int) {
     AboutScreen(title = R.string.about_screen_title),
     BenchMarkScreen(title = R.string.benchmark_screen_title),
 }
-
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +87,7 @@ fun ChatScreenAppBar(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MainViewModel,
-    isListening: Boolean
+    isListening: Boolean,
 ) {
     @SuppressLint("MissingPermission")
     fun provideHapticFeedback(context: Context) {
@@ -107,8 +104,8 @@ fun ChatScreenAppBar(
                 vibrator.vibrate(
                     VibrationEffect.createOneShot(
                         200, // Duration in milliseconds
-                        VibrationEffect.DEFAULT_AMPLITUDE
-                    )
+                        VibrationEffect.DEFAULT_AMPLITUDE,
+                    ),
                 )
             } else {
                 @Suppress("DEPRECATION")
@@ -127,7 +124,7 @@ fun ChatScreenAppBar(
     // Animation for smooth rotation
     val animatedRotationAngle by animateFloatAsState(
         targetValue = rotationAngle,
-        animationSpec = tween(durationMillis = 600, easing = LinearEasing)
+        animationSpec = tween(durationMillis = 600, easing = LinearEasing),
     )
 
     TopAppBar(
@@ -136,18 +133,18 @@ fun ChatScreenAppBar(
                 Text(
                     stringResource(currentScreen.title),
                     color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 28.sp)
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 28.sp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
                     modifier = Modifier
                         .size(10.dp)
-                        .background(if (isListening) Color.Green else Color.Red, CircleShape)
+                        .background(if (isListening) Color.Green else Color.Red, CircleShape),
                 )
             }
         },
         colors = TopAppBarDefaults.mediumTopAppBarColors(
-            containerColor = Color.Transparent
+            containerColor = Color.Transparent,
         ),
         modifier = modifier.background(darkNavyBlue),
         navigationIcon = {
@@ -156,7 +153,7 @@ fun ChatScreenAppBar(
                     Icon(
                         imageVector = Icons.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.back_button),
-                        tint = Color.White
+                        tint = Color.White,
                     )
                 }
             }
@@ -168,7 +165,7 @@ fun ChatScreenAppBar(
                         painter = painterResource(id = R.drawable.settings_gear_rounded),
                         contentDescription = stringResource(R.string.setting),
                         tint = Color.White,
-                        modifier = Modifier.size(25.dp)
+                        modifier = Modifier.size(25.dp),
                     )
                 }
             }
@@ -178,13 +175,13 @@ fun ChatScreenAppBar(
                         kc?.hide()
                         viewModel.stop()
                         viewModel.clear()
-                    }
+                    },
                 ) {
                     Icon(
                         modifier = Modifier.size(25.dp),
                         painter = painterResource(id = R.drawable.edit_3_svgrepo_com),
                         contentDescription = "newChat",
-                        tint = Color.White
+                        tint = Color.White,
                     )
                 }
             }
@@ -196,7 +193,7 @@ fun ChatScreenAppBar(
                             viewModel.loadExistingModels(extFileDir)
                             provideHapticFeedback(context)
                         }
-                    }
+                    },
                 ) {
                     Icon(
                         modifier = Modifier
@@ -204,7 +201,7 @@ fun ChatScreenAppBar(
                             .graphicsLayer { rotationZ = animatedRotationAngle },
                         imageVector = Icons.Default.Refresh,
                         contentDescription = stringResource(R.string.refresh_button),
-                        tint = Color.White
+                        tint = Color.White,
                     )
                 }
             }
@@ -212,23 +209,21 @@ fun ChatScreenAppBar(
                 IconButton(
                     onClick = {
                         viewModel.showDownloadInfoModal = true
-                    }
+                    },
                 ) {
                     Icon(
                         modifier = Modifier
                             .size(25.dp)
                             .graphicsLayer { rotationZ = animatedRotationAngle },
                         painter = painterResource(id = R.drawable.question_small_svgrepo_com),
-                        contentDescription = "question_svg" ,
-                        tint = Color.White
+                        contentDescription = "question_svg",
+                        tint = Color.White,
                     )
                 }
             }
-        }
+        },
     )
 }
-
-
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -240,7 +235,7 @@ fun ChatScreen(
     extFileDir: File?,
     onVoiceClicked: () -> Unit,
     isListening: Boolean,
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
 ) {
     // Define gradient colors
     val darkNavyBlue = Color(0xFF050a14)
@@ -248,7 +243,7 @@ fun ChatScreen(
 
     // Create gradient brush
     val gradientBrush = Brush.verticalGradient(
-        colors = listOf(darkNavyBlue, lightNavyBlue)
+        colors = listOf(darkNavyBlue, lightNavyBlue),
     )
 
     // Wrap the entire Scaffold with a Box that has the gradient background
@@ -257,7 +252,7 @@ fun ChatScreen(
             .fillMaxSize()
             .background(gradientBrush)
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .imePadding()
+            .imePadding(),
     ) {
         Scaffold(
             backgroundColor = Color.Transparent, // Make Scaffold background transparent
@@ -265,23 +260,23 @@ fun ChatScreen(
                 ChatScreenAppBar(
                     currentScreen = ChatScreen.valueOf(
                         navController.currentBackStackEntryAsState().value?.destination?.route
-                            ?: ChatScreen.Start.name
+                            ?: ChatScreen.Start.name,
                     ),
                     canNavigateBack = navController.previousBackStackEntry != null,
                     navigateUp = { navController.navigateUp() },
-                    onSettingsClick = {navController.navigate(ChatScreen.Settings.name)},
+                    onSettingsClick = { navController.navigate(ChatScreen.Settings.name) },
                     viewModel = viewModel,
                     extFileDir = extFileDir,
-                    isListening = isListening
+                    isListening = isListening,
                 )
-            }
+            },
         ) { innerPadding ->
             NavHost(
                 navController = navController,
                 startDestination = ChatScreen.Start.name,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(innerPadding),
             ) {
                 composable(route = ChatScreen.Start.name) {
                     MainChatScreen(
@@ -293,7 +288,7 @@ fun ChatScreen(
                         clipboard = clipboardManager,
                         models = models,
                         extFileDir = extFileDir,
-                        onVoiceClicked = onVoiceClicked
+                        onVoiceClicked = onVoiceClicked,
                     )
                 }
                 composable(route = ChatScreen.Settings.name) {
@@ -302,14 +297,14 @@ fun ChatScreen(
                             navController.navigate(ChatScreen.ModelsScreen.name)
                         },
                         onParamsScreenButtonClicked = {
-                          navController.navigate((ChatScreen.ParamsScreen.name))
+                            navController.navigate((ChatScreen.ParamsScreen.name))
                         },
                         onAboutScreenButtonClicked = {
                             navController.navigate((ChatScreen.AboutScreen.name))
                         },
                         onBenchMarkScreenButtonClicked = {
                             navController.navigate((ChatScreen.BenchMarkScreen.name))
-                        }
+                        },
 
                     )
                 }
@@ -318,25 +313,27 @@ fun ChatScreen(
                         SearchResultScreen(
                             viewModel,
                             downloadManager,
-                            extFileDir)
+                            extFileDir,
+                        )
                     }
                 }
                 composable(route = ChatScreen.ModelsScreen.name) {
-                    ModelsScreen(dm = downloadManager, extFileDir = extFileDir, viewModel = viewModel,onSearchResultButtonClick = {navController.navigate(
-                        ChatScreen.SearchResults.name
-                    )})
+                    ModelsScreen(dm = downloadManager, extFileDir = extFileDir, viewModel = viewModel, onSearchResultButtonClick = {
+                        navController.navigate(
+                            ChatScreen.SearchResults.name,
+                        )
+                    })
                 }
-                composable(route = ChatScreen.ParamsScreen.name){
+                composable(route = ChatScreen.ParamsScreen.name) {
                     ParametersScreen(viewModel)
                 }
-                composable(route = ChatScreen.AboutScreen.name){
+                composable(route = ChatScreen.AboutScreen.name) {
                     AboutScreen()
                 }
-                composable(route = ChatScreen.BenchMarkScreen.name){
+                composable(route = ChatScreen.BenchMarkScreen.name) {
                     BenchMarkScreen(viewModel)
                 }
             }
         }
     }
 }
-

@@ -3,8 +3,6 @@ package com.nervesparks.iris
 import android.content.Context
 import android.llama.cpp.LLamaAndroid
 import android.net.Uri
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -14,33 +12,39 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.nervesparks.iris.data.UserPreferencesRepository
+import com.nervesparks.iris.data.database.ChatMessage
+import com.nervesparks.iris.data.database.ChatMessageDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 import java.util.UUID
 
-import com.nervesparks.iris.data.database.ChatMessageDao
-
-import com.nervesparks.iris.data.database.ChatMessage
-import kotlinx.coroutines.flow.*
-
 class MainViewModel(
     private val context: Context,
     val llamaAndroid: LLamaAndroid = LLamaAndroid.instance(),
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val chatMessageDao: ChatMessageDao
-): ViewModel() {
+    private val chatMessageDao: ChatMessageDao,
+) : ViewModel() {
 
     private val _streamingResponse = MutableStateFlow<ChatMessage?>(null)
 
     val chatMessages: StateFlow<List<ChatMessage>> = combine(
         chatMessageDao.getAllMessages(),
-        _streamingResponse
+        _streamingResponse,
     ) { messages, streaming ->
         if (streaming != null) {
             messages + streaming
@@ -61,7 +65,6 @@ class MainViewModel(
 //        private val NanosPerSecond = 1_000_000_000.0
     }
 
-
     private val _defaultModelName = mutableStateOf("")
     val defaultModelName: State<String> = _defaultModelName
     private val tag: String = "MainViewModel"
@@ -70,17 +73,16 @@ class MainViewModel(
         loadDefaultModelName()
         Log.i(tag, llamaAndroid.system_info())
     }
-    private fun loadDefaultModelName(){
+    private fun loadDefaultModelName() {
         _defaultModelName.value = userPreferencesRepository.getDefaultModelName()
     }
 
-    fun setDefaultModelName(modelName: String){
+    fun setDefaultModelName(modelName: String) {
         userPreferencesRepository.setDefaultModelName(modelName)
         _defaultModelName.value = modelName
     }
 
     lateinit var selectedModel: String
-
 
     var newShowModal by mutableStateOf(false)
     var showDownloadInfoModal by mutableStateOf(false)
@@ -95,24 +97,24 @@ class MainViewModel(
             mapOf(
                 "name" to "Llama-3.2-1B-Instruct-Q6_K_L.gguf",
                 "source" to "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q6_K_L.gguf?download=true",
-                "destination" to "Llama-3.2-1B-Instruct-Q6_K_L.gguf"
+                "destination" to "Llama-3.2-1B-Instruct-Q6_K_L.gguf",
             ),
             mapOf(
                 "name" to "Llama-3.2-3B-Instruct-Q4_K_L.gguf",
                 "source" to "https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_L.gguf?download=true",
-                "destination" to "Llama-3.2-3B-Instruct-Q4_K_L.gguf"
+                "destination" to "Llama-3.2-3B-Instruct-Q4_K_L.gguf",
             ),
             mapOf(
                 "name" to "stablelm-2-1_6b-chat.Q4_K_M.imx.gguf",
                 "source" to "https://huggingface.co/Crataco/stablelm-2-1_6b-chat-imatrix-GGUF/resolve/main/stablelm-2-1_6b-chat.Q4_K_M.imx.gguf?download=true",
-                "destination" to "stablelm-2-1_6b-chat.Q4_K_M.imx.gguf"
+                "destination" to "stablelm-2-1_6b-chat.Q4_K_M.imx.gguf",
             ),
 
-        )
+        ),
     )
 
     private var first by mutableStateOf(
-        true
+        true,
     )
     var userSpecifiedThreads by mutableIntStateOf(2)
     var message by mutableStateOf("")
@@ -121,14 +123,13 @@ class MainViewModel(
     var userGivenModel by mutableStateOf("")
     var SearchedName by mutableStateOf("")
 
-    private var textToSpeech:TextToSpeech? = null
+    private var textToSpeech: TextToSpeech? = null
 
     var textForTextToSpeech = ""
     var stateForTextToSpeech by mutableStateOf(true)
         private set
 
     var eot_str = ""
-
 
     var refresh by mutableStateOf(false)
 
@@ -141,7 +142,7 @@ class MainViewModel(
                 allModels += mapOf(
                     "name" to modelName,
                     "source" to "local",
-                    "destination" to file.name
+                    "destination" to file.name,
                 )
             }
         }
@@ -151,13 +152,13 @@ class MainViewModel(
 
             if (loadedDefaultModel != null) {
                 val destinationPath = File(directory, loadedDefaultModel["destination"].toString())
-                if(loadedModelName.value == "") {
+                if (loadedModelName.value == "") {
                     load(destinationPath.path, userThreads = user_thread.toInt())
                 }
                 currentDownloadable = Downloadable(
                     loadedDefaultModel["name"].toString(),
                     Uri.parse(loadedDefaultModel["source"].toString()),
-                    destinationPath
+                    destinationPath,
                 )
             } else {
                 // Handle case where the model is not found
@@ -166,37 +167,34 @@ class MainViewModel(
                     destinationPath.exists()
                 }?.let { model ->
                     val destinationPath = File(directory, model["destination"].toString())
-                    if(loadedModelName.value == "") {
+                    if (loadedModelName.value == "") {
                         load(destinationPath.path, userThreads = user_thread.toInt())
                     }
                     currentDownloadable = Downloadable(
                         model["name"].toString(),
                         Uri.parse(model["source"].toString()),
-                        destinationPath
+                        destinationPath,
                     )
                 }
             }
-        } else{
+        } else {
             allModels.find { model ->
                 val destinationPath = File(directory, model["destination"].toString())
                 destinationPath.exists()
             }?.let { model ->
                 val destinationPath = File(directory, model["destination"].toString())
-                if(loadedModelName.value == "") {
+                if (loadedModelName.value == "") {
                     load(destinationPath.path, userThreads = user_thread.toInt())
                 }
                 currentDownloadable = Downloadable(
                     model["name"].toString(),
                     Uri.parse(model["source"].toString()),
-                    destinationPath
+                    destinationPath,
                 )
             }
-        // Attempt to find and load the first model that exists in the combined logic
-
-         }
+            // Attempt to find and load the first model that exists in the combined logic
+        }
     }
-
-
 
     fun textToSpeech(context: Context) {
         if (!getIsSending()) {
@@ -238,7 +236,7 @@ class MainViewModel(
                             textForTextToSpeech,
                             TextToSpeech.QUEUE_FLUSH,
                             null,
-                            utteranceId
+                            utteranceId,
                         )
                     }
                 }
@@ -246,12 +244,10 @@ class MainViewModel(
         }
     }
 
-
-
     fun stopTextToSpeech() {
         textToSpeech?.apply {
-            stop()  // Stops current speech
-            shutdown()  // Releases the resources
+            stop() // Stops current speech
+            shutdown() // Releases the resources
         }
         textToSpeech = null
 
@@ -259,10 +255,8 @@ class MainViewModel(
         stateForTextToSpeech = true
     }
 
-
-
     var toggler by mutableStateOf(false)
-    var showModal by  mutableStateOf(true)
+    var showModal by mutableStateOf(true)
     var showAlert by mutableStateOf(false)
     var switchModal by mutableStateOf(false)
     var currentDownloadable: Downloadable? by mutableStateOf(null)
@@ -273,9 +267,7 @@ class MainViewModel(
 
         viewModelScope.launch {
             try {
-
                 llamaAndroid.unload()
-
             } catch (exc: IllegalStateException) {
                 Log.e(tag, "onCleared() failed", exc)
             }
@@ -295,7 +287,7 @@ class MainViewModel(
                             LLamaAndroid.getClipContext(),
                             preprocessedImage!!,
                             224,
-                            224
+                            224,
                         )
                     }
                     selectedImageUri = null
@@ -309,7 +301,7 @@ class MainViewModel(
                     text = userMessage,
                     timestamp = System.currentTimeMillis(),
                     isUser = true,
-                    embedding = floatArrayToByteArray(userEmbedding)
+                    embedding = floatArrayToByteArray(userEmbedding),
                 )
                 chatMessageDao.insert(userChatMessage)
 
@@ -334,7 +326,7 @@ class MainViewModel(
                             text = systemMessage,
                             timestamp = System.currentTimeMillis(),
                             isUser = false,
-                            embedding = floatArrayToByteArray(systemEmbedding)
+                            embedding = floatArrayToByteArray(systemEmbedding),
                         )
                         chatMessageDao.insert(systemChatMessage)
 
@@ -346,7 +338,7 @@ class MainViewModel(
                             text = hiMessage,
                             timestamp = System.currentTimeMillis(),
                             isUser = true,
-                            embedding = floatArrayToByteArray(hiEmbedding)
+                            embedding = floatArrayToByteArray(hiEmbedding),
                         )
                         chatMessageDao.insert(hiChatMessage)
 
@@ -358,7 +350,7 @@ class MainViewModel(
                             text = howMayIHelpYouMessage,
                             timestamp = System.currentTimeMillis(),
                             isUser = false,
-                            embedding = floatArrayToByteArray(howMayIHelpYouEmbedding)
+                            embedding = floatArrayToByteArray(howMayIHelpYouEmbedding),
                         )
                         chatMessageDao.insert(howMayIHelpYouChatMessage)
                         first = false
@@ -378,7 +370,7 @@ class MainViewModel(
                                 text = assistantResponse.toString(),
                                 timestamp = System.currentTimeMillis(),
                                 isUser = false,
-                                embedding = byteArrayOf()
+                                embedding = byteArrayOf(),
                             )
                         }
                 } finally {
@@ -391,7 +383,7 @@ class MainViewModel(
                             text = finalResponse,
                             timestamp = System.currentTimeMillis(),
                             isUser = false,
-                            embedding = floatArrayToByteArray(assistantEmbedding)
+                            embedding = floatArrayToByteArray(assistantEmbedding),
                         )
                         chatMessageDao.insert(assistantChatMessage)
                     }
@@ -413,7 +405,7 @@ class MainViewModel(
         return byteBuffer.array()
     }
 
-    suspend fun unload(){
+    suspend fun unload() {
         llamaAndroid.unload()
     }
 
@@ -467,24 +459,23 @@ class MainViewModel(
         }
     }
 
-    var loadedModelName = mutableStateOf("");
+    var loadedModelName = mutableStateOf("")
 
-    fun load(pathToModel: String, userThreads: Int)  {
+    fun load(pathToModel: String, userThreads: Int) {
         viewModelScope.launch {
-            try{
+            try {
                 llamaAndroid.unload()
-            } catch (exc: IllegalStateException){
+            } catch (exc: IllegalStateException) {
                 Log.e(tag, "load() failed", exc)
             }
             try {
                 val modelName = pathToModel.split("/").last()
                 loadedModelName.value = modelName
                 newShowModal = false
-                showModal= false
+                showModal = false
                 showAlert = true
                 llamaAndroid.load(pathToModel, userThreads = userThreads, topK = topK, topP = topP, temp = temp)
                 showAlert = false
-
             } catch (exc: IllegalStateException) {
                 Log.e(tag, "load() failed", exc)
             }
@@ -498,15 +489,14 @@ class MainViewModel(
         return input.replace("\\s+".toRegex(), " ")
     }
 
-    private fun parseTemplateJson(chatData: List<Map<String, String>> ):String{
+    private fun parseTemplateJson(chatData: List<Map<String, String>>): String {
         var chatStr = ""
-        for (data in chatData){
+        for (data in chatData) {
             val role = data["role"]
             val content = data["content"]
-            if (role != "log"){
+            if (role != "log") {
                 chatStr += "$role \n$content \n"
             }
-
         }
         return chatStr
     }
@@ -532,7 +522,7 @@ class MainViewModel(
         return llamaAndroid.getIsMarked()
     }
 
-    fun getIsCompleteEOT(): Boolean{
+    fun getIsCompleteEOT(): Boolean {
         return llamaAndroid.getIsCompleteEOT()
     }
 
@@ -591,9 +581,9 @@ class MainViewModel(
         }
     }
 
-fun onSpokenText(spokenText: String) {
-    updateMessage(spokenText)
-}
+    fun onSpokenText(spokenText: String) {
+        updateMessage(spokenText)
+    }
 
     fun loadMmproj(path: String) {
         mmprojPath = path
@@ -631,6 +621,5 @@ fun onSpokenText(spokenText: String) {
     }
 }
 
-fun sentThreadsValue(){
-
+fun sentThreadsValue() {
 }

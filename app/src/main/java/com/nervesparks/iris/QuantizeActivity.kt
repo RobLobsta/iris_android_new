@@ -20,7 +20,7 @@ class QuantizeActivity : ComponentActivity() {
         setContent {
             QuantizeScreen(
                 viewModel = viewModel,
-                onGoBack = { finish() }
+                onGoBack = { finish() },
             )
         }
     }

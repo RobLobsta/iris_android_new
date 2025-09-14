@@ -1,18 +1,33 @@
 package com.nervesparks.iris
 
+import android.content.ClipboardManager
+import android.content.Context
+import android.llama.cpp.LLamaAndroid
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import android.llama.cpp.LLamaAndroid
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import android.content.ClipboardManager
-import android.content.Context
-import androidx.compose.foundation.clickable
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,7 +40,7 @@ class SearchActivity : ComponentActivity() {
     private val searchViewModel: SearchViewModel by viewModels {
         SearchViewModelFactory(
             AppDatabase.getDatabase(applicationContext).chatMessageDao(),
-            LLamaAndroid.instance()
+            LLamaAndroid.instance(),
         )
     }
 
@@ -48,14 +63,14 @@ fun SearchScreen(viewModel: SearchViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 label = { Text("Search") },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Button(onClick = { viewModel.search(searchQuery) }) {
@@ -71,7 +86,7 @@ fun SearchScreen(viewModel: SearchViewModel) {
                         .padding(vertical = 4.dp)
                         .clickable {
                             clipboardManager.setText(AnnotatedString(message.text))
-                        }
+                        },
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {
                         Text(text = message.text, style = MaterialTheme.typography.bodyLarge)

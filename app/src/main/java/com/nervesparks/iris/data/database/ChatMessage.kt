@@ -10,7 +10,7 @@ data class ChatMessage(
     val text: String,
     val timestamp: Long,
     val isUser: Boolean,
-    val embedding: ByteArray
+    val embedding: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

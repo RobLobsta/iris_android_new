@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import com.nervesparks.iris.MainViewModel
 import com.nervesparks.iris.ui.components.LoadingModal
 
-
 @Composable
 fun ParametersScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
@@ -40,15 +39,13 @@ fun ParametersScreen(viewModel: MainViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(16.dp),
     ) {
-
-
-            Text(
-                text = "After changing please Save the changes",
-                color = Color.White,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+        Text(
+            text = "After changing please Save the changes",
+            color = Color.White,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
 
         // Card with sliders taking weight of 1f to fill available space
         androidx.compose.material3.Card(
@@ -58,13 +55,13 @@ fun ParametersScreen(viewModel: MainViewModel) {
                 .padding(vertical = 4.dp)
                 .shadow(
                     elevation = 8.dp,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
                 ),
             colors = CardDefaults.cardColors(
                 containerColor = Color(0xff0f172a),
-                contentColor = Color.White
+                contentColor = Color.White,
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         ) {
             if (viewModel.showAlert) {
                 LoadingModal(viewModel)
@@ -72,16 +69,16 @@ fun ParametersScreen(viewModel: MainViewModel) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize() // Fill the card's space
-                    .padding(15.dp)
+                    .padding(15.dp),
             ) {
                 item {
                     SettingSection(
                         title = "Thread Selection",
-                        description = "Select thread for process, 0 for default"
+                        description = "Select thread for process, 0 for default",
                     ) {
                         Text(
                             text = "${viewModel.user_thread.toInt()}",
-                            color = Color.White
+                            color = Color.White,
                         )
                         Slider(
                             value = viewModel.user_thread,
@@ -91,8 +88,8 @@ fun ParametersScreen(viewModel: MainViewModel) {
                             colors = SliderDefaults.colors(
                                 thumbColor = Color(0xFF2563EB),
                                 activeTrackColor = Color(0xFF2563EB),
-                                inactiveTrackColor = Color.Gray
-                            )
+                                inactiveTrackColor = Color.Gray,
+                            ),
                         )
                     }
                 }
@@ -102,7 +99,7 @@ fun ParametersScreen(viewModel: MainViewModel) {
                 item {
                     SettingSection(
                         title = "Perplexity",
-                        description = "Enable to calculate perplexity"
+                        description = "Enable to calculate perplexity",
                     ) {
                         androidx.compose.material.Switch(
                             checked = viewModel.perplexity,
@@ -111,8 +108,8 @@ fun ParametersScreen(viewModel: MainViewModel) {
                                 checkedThumbColor = Color(0xFF2563EB),
                                 checkedTrackColor = Color(0xFF2563EB).copy(alpha = 0.5f),
                                 uncheckedThumbColor = Color.Gray,
-                                uncheckedTrackColor = Color.Gray.copy(alpha = 0.5f)
-                            )
+                                uncheckedTrackColor = Color.Gray.copy(alpha = 0.5f),
+                            ),
                         )
                     }
                 }
@@ -122,11 +119,11 @@ fun ParametersScreen(viewModel: MainViewModel) {
                 item {
                     SettingSection(
                         title = "Temperature",
-                        description = "Adjust randomness (0.0 - 1.0)"
+                        description = "Adjust randomness (0.0 - 1.0)",
                     ) {
                         Text(
                             text = String.format("%.2f", viewModel.temp),
-                            color = Color.White
+                            color = Color.White,
                         )
                         Slider(
                             value = viewModel.temp,
@@ -136,8 +133,8 @@ fun ParametersScreen(viewModel: MainViewModel) {
                             colors = SliderDefaults.colors(
                                 thumbColor = Color(0xFF2563EB),
                                 activeTrackColor = Color(0xFF2563EB),
-                                inactiveTrackColor = Color.Gray
-                            )
+                                inactiveTrackColor = Color.Gray,
+                            ),
                         )
                     }
                 }
@@ -147,11 +144,11 @@ fun ParametersScreen(viewModel: MainViewModel) {
                 item {
                     SettingSection(
                         title = "Top P",
-                        description = "Nucleus sampling threshold (0.0 - 1.0)"
+                        description = "Nucleus sampling threshold (0.0 - 1.0)",
                     ) {
                         Text(
                             text = String.format("%.2f", viewModel.topP),
-                            color = Color.White
+                            color = Color.White,
                         )
                         Slider(
                             value = viewModel.topP,
@@ -161,8 +158,8 @@ fun ParametersScreen(viewModel: MainViewModel) {
                             colors = SliderDefaults.colors(
                                 thumbColor = Color(0xFF2563EB),
                                 activeTrackColor = Color(0xFF2563EB),
-                                inactiveTrackColor = Color.Gray
-                            )
+                                inactiveTrackColor = Color.Gray,
+                            ),
                         )
                     }
                 }
@@ -172,11 +169,11 @@ fun ParametersScreen(viewModel: MainViewModel) {
                 item {
                     SettingSection(
                         title = "Top K",
-                        description = "Number of tokens to consider (0 - 50)"
+                        description = "Number of tokens to consider (0 - 50)",
                     ) {
                         Text(
                             text = "${viewModel.topK.toInt()}",
-                            color = Color.White
+                            color = Color.White,
                         )
                         Slider(
                             value = viewModel.topK.toFloat(),
@@ -186,13 +183,11 @@ fun ParametersScreen(viewModel: MainViewModel) {
                             colors = SliderDefaults.colors(
                                 thumbColor = Color(0xFF2563EB),
                                 activeTrackColor = Color(0xFF2563EB),
-                                inactiveTrackColor = Color.Gray
-                            )
+                                inactiveTrackColor = Color.Gray,
+                            ),
                         )
                     }
                 }
-
-
             }
         }
 
@@ -202,23 +197,23 @@ fun ParametersScreen(viewModel: MainViewModel) {
         Row(
             modifier = Modifier
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Button(
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF9CA3AF).copy(alpha = 1.0f),
-                    contentColor = Color.White
+                    contentColor = Color.White,
                 ),
                 shape = RoundedCornerShape(8.dp),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 6.dp,
-                    pressedElevation = 3.dp
+                    pressedElevation = 3.dp,
                 ),
                 onClick = {
-                    if(viewModel.loadedModelName.value == "") {
+                    if (viewModel.loadedModelName.value == "") {
                         Toast.makeText(context, "Load A Model First", Toast.LENGTH_SHORT).show()
-                    }else {
+                    } else {
                         viewModel.user_thread = 0f
                         viewModel.temp = 0f
                         viewModel.topK = 0
@@ -229,7 +224,7 @@ fun ParametersScreen(viewModel: MainViewModel) {
                                 .show()
                         }
                     }
-                }
+                },
             ) {
                 Text("Reset Default")
             }
@@ -240,15 +235,15 @@ fun ParametersScreen(viewModel: MainViewModel) {
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2563EB).copy(alpha = 1.0f),
-                    contentColor = Color.White
+                    contentColor = Color.White,
                 ),
                 shape = RoundedCornerShape(8.dp),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 6.dp,
-                    pressedElevation = 3.dp
+                    pressedElevation = 3.dp,
                 ),
                 onClick = {
-                    if(viewModel.loadedModelName.value == "") {
+                    if (viewModel.loadedModelName.value == "") {
                         Toast.makeText(context, "Load A Model First", Toast.LENGTH_SHORT).show()
                     } else {
                         viewModel.currentDownloadable?.destination?.path?.let {
@@ -256,30 +251,31 @@ fun ParametersScreen(viewModel: MainViewModel) {
                             Toast.makeText(context, "Changes have been saved", Toast.LENGTH_SHORT).show()
                         }
                     }
-                }
+                },
             ) {
                 Text("Save")
             }
         }
     }
 }
+
 @Composable
 private fun SettingSection(
     title: String,
     description: String,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     Text(
         text = title,
         color = Color.White,
         style = MaterialTheme.typography.subtitle1,
-        fontWeight = FontWeight.Bold
+        fontWeight = FontWeight.Bold,
     )
     Spacer(modifier = Modifier.height(4.dp))
     Text(
         text = description,
         color = Color.Gray,
-        style = MaterialTheme.typography.caption
+        style = MaterialTheme.typography.caption,
     )
     Spacer(modifier = Modifier.height(8.dp))
     content()
@@ -293,6 +289,6 @@ private fun SectionDivider() {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         color = Color.DarkGray,
-        thickness = 1.dp
+        thickness = 1.dp,
     )
 }
