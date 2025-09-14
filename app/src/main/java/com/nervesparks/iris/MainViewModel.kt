@@ -591,6 +591,10 @@ class MainViewModel(
         }
     }
 
+fun onSpokenText(spokenText: String) {
+    updateMessage(spokenText)
+}
+
     fun loadMmproj(path: String) {
         mmprojPath = path
         viewModelScope.launch {

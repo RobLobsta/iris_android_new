@@ -10,6 +10,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://s3.amazonaws.com/picovoice-repo/maven")
+        }
     }
 }
 

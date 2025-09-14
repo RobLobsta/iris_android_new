@@ -1,17 +1,26 @@
 package com.nervesparks.iris
 
 import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.ServiceConnection
+import androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
 import android.llama.cpp.LLamaAndroid
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import android.os.IBinder
 import android.net.Uri
 import android.os.Bundle
 import android.os.StrictMode
 import android.os.StrictMode.VmPolicy
 
+import android.speech.RecognizerIntent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -40,6 +49,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -68,6 +78,8 @@ import com.nervesparks.iris.ui.SettingsBottomSheet
 
 
 import com.nervesparks.iris.data.database.AppDatabase
+import android.speech.SpeechRecognizer
+import android.util.Log
 
 class MainViewModelFactory(
     private val context: Context,
@@ -98,6 +110,32 @@ class MainActivity(
     private val clipboardManager by lazy { clipboardManager ?: getSystemService<ClipboardManager>()!! }
 
     private lateinit var viewModel: MainViewModel
+    private lateinit var speechRecognizer: SpeechRecognizer
+
+    private val speechRecognitionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data: Intent? = result.data
+            val results = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            results?.let {
+                if (it.isNotEmpty()) {
+                    val spokenText = it[0]
+                    viewModel.onSpokenText(spokenText)
+                }
+            }
+        }
+    }
+
+    private val voiceServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            // We don't need to do anything here, as the service runs in the background
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            // This is called when the connection with the service has been unexpectedly disconnected
+        }
+    }
 
 
     // Get a MemoryInfo object for the device's current memory status.
@@ -134,6 +172,8 @@ class MainActivity(
         val lLamaAndroid = LLamaAndroid.instance()
         val viewModelFactory = MainViewModelFactory(applicationContext, lLamaAndroid, userPrefsRepo, appDatabase)
         viewModel = ViewModelProvider(this, viewModelFactory)[MainViewModel::class.java]
+
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
 
 
 //        val free = Formatter.formatFileSize(this, availableMemory().availMem)
@@ -392,15 +432,47 @@ class MainActivity(
                 },
             ) {
 
+                val isListening by VoiceServiceState.isListening.collectAsState()
+
                 ChatScreen(
                     viewModel,
                     clipboardManager,
                     downloadManager,
                     models,
                     extFilesDir,
+                    onVoiceClicked = { startSpeechRecognition() },
+                    isListening = isListening
                 )
             }
         }
+    }
+
+    private val wakeWordReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == VoiceService.WAKE_WORD_DETECTED_ACTION) {
+                startSpeechRecognition()
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val serviceIntent = Intent(this, VoiceService::class.java)
+        bindService(serviceIntent, voiceServiceConnection, Context.BIND_AUTO_CREATE)
+        LocalBroadcastManager.getInstance(this).registerReceiver(wakeWordReceiver, IntentFilter(VoiceService.WAKE_WORD_DETECTED_ACTION))
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unbindService(voiceServiceConnection)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(wakeWordReceiver)
+    }
+
+    private fun startSpeechRecognition() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now")
+        speechRecognitionLauncher.launch(intent)
     }
 }
 
