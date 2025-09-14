@@ -50,7 +50,9 @@ import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Slider
 import androidx.compose.material.SliderDefaults
+import androidx.compose.material.Switch
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
@@ -161,6 +163,22 @@ fun MainChatScreen (
 
     }
 
+    val context = LocalContext.current
+    val imagePickerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
+        viewModel.onImageSelected(uri)
+    }
+
+    val mmprojPickerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            val contentResolver = context.contentResolver
+            val inputStream = contentResolver.openInputStream(uri)
+            val file = File(context.cacheDir, "mmproj.gguf")
+            val outputStream = java.io.FileOutputStream(file)
+            inputStream?.copyTo(outputStream)
+            viewModel.loadMmproj(file.absolutePath)
+        }
+    }
+
 
 
 
@@ -172,6 +190,7 @@ fun MainChatScreen (
         viewModel.showModal = false
     }
     val chatMessages by viewModel.chatMessages.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -188,9 +207,16 @@ fun MainChatScreen (
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp),
-                    horizontalArrangement = Arrangement.End
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     val context = LocalContext.current
+                    Text("RAG", color = Color.White)
+                    Switch(
+                        checked = uiState.isRagEnabled,
+                        onCheckedChange = { viewModel.toggleRag() },
+                        enabled = uiState.isRagReady
+                    )
                     IconButton(onClick = {
                         context.startActivity(Intent(context, com.nervesparks.iris.QuantizeActivity::class.java))
                     }) {
@@ -445,6 +471,26 @@ fun MainChatScreen (
                                     painter = painterResource(id = R.drawable.microphone_new_svgrepo_com),
                                     contentDescription = "Mic",
                                     tint = Color(0xFFDDDDE4) // Optional: set the color of the icon
+                                )
+                            }
+
+                            IconButton(onClick = {
+                                imagePickerLauncher.launch("image/*")
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.AddAPhoto,
+                                    contentDescription = "Add Photo",
+                                    tint = Color(0xFFDDDDE4)
+                                )
+                            }
+
+                            IconButton(onClick = {
+                                mmprojPickerLauncher.launch("*/*")
+                            }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                                    contentDescription = "Add Mmproj",
+                                    tint = Color(0xFFDDDDE4)
                                 )
                             }
 

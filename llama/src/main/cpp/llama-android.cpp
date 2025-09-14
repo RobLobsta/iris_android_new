@@ -1,4 +1,5 @@
 #include <android/log.h>
+#include <android/log.h>
 #include <jni.h>
 #include <iomanip>
 #include <math.h>
@@ -7,6 +8,8 @@
 #include "llama.h"
 #include "common.h"
 #include "ggml.h"
+#include "clip.h"
+#include "llava.h"
 #define JSON_ASSERT GGML_ASSERT
 #include "json.hpp"
 #include <vector>
@@ -771,6 +774,51 @@ static double calculate_perplexity(llama_context * ctx, const std::string& text)
     }
 
     return exp(nll / count);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_android_llama_cpp_LLamaAndroid_llava_1eval_1image(
+        JNIEnv *env,
+        jobject,
+        jlong context_pointer,
+        jlong clip_context_pointer,
+        jbyteArray image_data,
+        jint width,
+        jint height
+) {
+    const auto context = reinterpret_cast<llama_context *>(context_pointer);
+    const auto clip_ctx = reinterpret_cast<struct clip_ctx *>(clip_context_pointer);
+
+    jbyte* image_bytes = env->GetByteArrayElements(image_data, NULL);
+    jsize image_bytes_length = env->GetArrayLength(image_data);
+
+    llava_image_embed * embed = llava_image_embed_make_with_bytes(clip_ctx, 4, (const unsigned char *)image_bytes, image_bytes_length);
+
+    int n_past = 0;
+    llava_eval_image_embed(context, embed, 4, &n_past);
+
+    llava_image_embed_free(embed);
+
+    env->ReleaseByteArrayElements(image_data, image_bytes, JNI_ABORT);
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_android_llama_cpp_LLamaAndroid_load_1clip_1model(
+        JNIEnv *env,
+        jobject,
+        jstring jpath
+) {
+    const char * path = env->GetStringUTFChars(jpath, 0);
+    auto * clip_ctx = clip_model_load(path, 1);
+    if (!clip_ctx) {
+        LOGe("load_clip_model() failed");
+        env->ThrowNew(env->FindClass("java/lang/IllegalStateException"), "load_clip_model() failed");
+        return 0;
+    }
+    env->ReleaseStringUTFChars(jpath, path);
+    return reinterpret_cast<jlong>(clip_ctx);
 }
 
 extern "C"

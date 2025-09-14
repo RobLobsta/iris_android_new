@@ -32,7 +32,20 @@ project("llama-android")
 #
 
 #load local llama.cpp
-add_subdirectory(/app/llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb build-llama)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../../../llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb build-llama)
+
+add_library(llava_static STATIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb/examples/llava/clip.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb/examples/llava/llava.cpp
+)
+
+target_include_directories(
+        llava_static
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb/ggml/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb/common
+)
 
 # In order to load a library into your app from Java/Kotlin, you must call
 # System.loadLibrary() and pass the name of the library defined here;
@@ -49,12 +62,14 @@ target_include_directories(
         llama-android
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../../../../llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb/common
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../../../llama.cpp/llama.cpp-1f922254f0c984a8fb9fbaa0c390d7ffae49aedb/examples/llava
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
         # List libraries link to the target library
         llama
         common
+        llava_static
         android
         log)
 if (${ANDROID_ABI} STREQUAL "arm64-v8a")

@@ -2,6 +2,7 @@ package com.nervesparks.iris
 
 import android.app.DownloadManager
 import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.llama.cpp.LLamaAndroid
 import android.net.Uri
@@ -69,6 +70,7 @@ import com.nervesparks.iris.ui.SettingsBottomSheet
 import com.nervesparks.iris.data.database.AppDatabase
 
 class MainViewModelFactory(
+    private val context: Context,
     private val llamaAndroid: LLamaAndroid,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val appDatabase: AppDatabase
@@ -77,7 +79,7 @@ class MainViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return MainViewModel(llamaAndroid, userPreferencesRepository, appDatabase.chatMessageDao()) as T
+            return MainViewModel(context, llamaAndroid, userPreferencesRepository, appDatabase.chatMessageDao()) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
@@ -130,7 +132,7 @@ class MainActivity(
         val appDatabase = AppDatabase.getDatabase(applicationContext)
 
         val lLamaAndroid = LLamaAndroid.instance()
-        val viewModelFactory = MainViewModelFactory(lLamaAndroid, userPrefsRepo, appDatabase)
+        val viewModelFactory = MainViewModelFactory(applicationContext, lLamaAndroid, userPrefsRepo, appDatabase)
         viewModel = ViewModelProvider(this, viewModelFactory)[MainViewModel::class.java]
 
 
@@ -422,12 +424,3 @@ fun LinearGradient() {
 
 
 // [END android_compose_layout_material_modal_drawer]
-
-
-
-
-
-
-
-
-
