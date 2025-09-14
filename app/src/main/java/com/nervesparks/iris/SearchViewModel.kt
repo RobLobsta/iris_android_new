@@ -7,14 +7,14 @@ import androidx.lifecycle.viewModelScope
 import com.nervesparks.iris.data.database.ChatMessage
 import com.nervesparks.iris.data.database.ChatMessageDao
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 
 class SearchViewModel(
     private val chatMessageDao: ChatMessageDao,
-    private val llamaAndroid: LLamaAndroid
+    private val llamaAndroid: LLamaAndroid,
 ) : ViewModel() {
 
     private val _searchResults = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -31,8 +31,8 @@ class SearchViewModel(
                     val similarity = cosineSimilarity(queryEmbedding, messageEmbedding)
                     message to similarity
                 }
-                .sortedByDescending { it.second }
-                .map { it.first }
+                    .sortedByDescending { it.second }
+                    .map { it.first }
 
                 _searchResults.value = rankedMessages
             } else {
@@ -64,7 +64,7 @@ class SearchViewModel(
 
 class SearchViewModelFactory(
     private val chatMessageDao: ChatMessageDao,
-    private val llamaAndroid: LLamaAndroid
+    private val llamaAndroid: LLamaAndroid,
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(SearchViewModel::class.java)) {

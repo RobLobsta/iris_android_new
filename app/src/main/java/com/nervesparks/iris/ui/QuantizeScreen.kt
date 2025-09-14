@@ -3,16 +3,36 @@ package com.nervesparks.iris.ui
 import android.annotation.SuppressLint
 import android.content.Context
 import android.database.Cursor
-import android.llama.cpp.LLamaAndroid
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -47,7 +67,6 @@ private fun getFileName(context: Context, uri: Uri): String {
     return result ?: "unknown"
 }
 
-
 private fun getPathFromUri(context: Context, uri: Uri): String? {
     val fileName = getFileName(context, uri)
     val file = File(context.cacheDir, fileName)
@@ -69,7 +88,7 @@ private fun getPathFromUri(context: Context, uri: Uri): String? {
 @Composable
 fun QuantizeScreen(
     viewModel: MainViewModel,
-    onGoBack: () -> Unit
+    onGoBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val llama = viewModel.llamaAndroid
@@ -86,7 +105,7 @@ fun QuantizeScreen(
             uri?.let {
                 inputFile = getPathFromUri(context, it) ?: ""
             }
-        }
+        },
     )
 
     Scaffold(
@@ -97,9 +116,9 @@ fun QuantizeScreen(
                     IconButton(onClick = onGoBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
             )
-        }
+        },
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -107,7 +126,7 @@ fun QuantizeScreen(
                 .padding(16.dp)
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Select a model to quantize. The quantized model will be saved in the app's data directory.")
 
@@ -118,20 +137,20 @@ fun QuantizeScreen(
                 value = inputFile,
                 onValueChange = { inputFile = it },
                 label = { Text("Input Model Path") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             OutlinedTextField(
                 value = outputFile,
                 onValueChange = { outputFile = it },
                 label = { Text("Output Model Name") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
 
             var expanded by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
+                onExpandedChange = { expanded = !expanded },
             ) {
                 OutlinedTextField(
                     value = selectedQuantization,
@@ -143,11 +162,11 @@ fun QuantizeScreen(
                     },
                     modifier = Modifier
                         .menuAnchor()
-                        .fillMaxWidth()
+                        .fillMaxWidth(),
                 )
                 ExposedDropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
                 ) {
                     llama.quantizationOptions.forEach { option ->
                         DropdownMenuItem(
@@ -155,7 +174,7 @@ fun QuantizeScreen(
                             onClick = {
                                 selectedQuantization = option
                                 expanded = false
-                            }
+                            },
                         )
                     }
                 }
@@ -177,7 +196,7 @@ fun QuantizeScreen(
                         }
                     }
                 },
-                enabled = !isQuantizing && inputFile.isNotBlank() && outputFile.isNotBlank()
+                enabled = !isQuantizing && inputFile.isNotBlank() && outputFile.isNotBlank(),
             ) {
                 if (isQuantizing) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp))

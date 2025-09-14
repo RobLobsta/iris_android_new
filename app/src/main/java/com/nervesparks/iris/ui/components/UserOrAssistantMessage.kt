@@ -28,7 +28,7 @@ fun UserOrAssistantMessage(role: String, message: String, onLongClick: () -> Uni
         horizontalArrangement = if (role == "user") Arrangement.End else Arrangement.Start,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
+            .padding(8.dp),
     ) {
         if (role == "assistant") MessageIcon(iconRes = R.drawable.logo, description = "Bot Icon")
 
@@ -37,19 +37,19 @@ fun UserOrAssistantMessage(role: String, message: String, onLongClick: () -> Uni
                 .padding(horizontal = 2.dp)
                 .background(
                     color = if (role == "user") Color(0xFF171E2C) else Color.Transparent,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
                 )
                 .combinedClickable(
                     onLongClick = onLongClick,
-                    onClick = {}
+                    onClick = {},
                 )
-                .padding(8.dp)
+                .padding(8.dp),
         ) {
             Text(
                 text = message.removePrefix("```"),
                 style = MaterialTheme.typography.bodyLarge.copy(color = Color(0xFFA0A0A5)),
                 maxLines = 10,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
 
@@ -62,6 +62,6 @@ private fun MessageIcon(iconRes: Int, description: String) {
     Image(
         painter = painterResource(id = iconRes),
         contentDescription = description,
-        modifier = Modifier.size(20.dp)
+        modifier = Modifier.size(20.dp),
     )
 }

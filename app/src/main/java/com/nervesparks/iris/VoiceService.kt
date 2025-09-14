@@ -1,6 +1,9 @@
 package com.nervesparks.iris
 
-import ai.picovoice.porcupine.*
+import ai.picovoice.porcupine.Porcupine
+import ai.picovoice.porcupine.PorcupineException
+import ai.picovoice.porcupine.PorcupineManager
+import ai.picovoice.porcupine.PorcupineManagerCallback
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder

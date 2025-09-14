@@ -1,10 +1,11 @@
-import java.util.Properties
 import java.io.FileInputStream
+import java.util.Properties
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp") version "1.9.0-1.0.12"
+    id("org.jlleitschuh.gradle.ktlint") version "11.6.1"
 }
 
 val localProperties = Properties()
@@ -42,7 +43,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
             signingConfig = signingConfigs.getByName("debug")
         }
@@ -115,4 +116,8 @@ dependencies {
 
     // Porcupine
     implementation("ai.picovoice:porcupine-android:3.0.3")
+}
+
+ktlint {
+    version.set("0.48.2")
 }

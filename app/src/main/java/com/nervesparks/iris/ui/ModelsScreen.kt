@@ -55,13 +55,13 @@ fun ModelsScreen(extFileDir: File?, viewModel: MainViewModel, onSearchResultButt
                             .padding(horizontal = 10.dp, vertical = 5.dp)
                             .clickable {
                                 onSearchResultButtonClick()
-                            }
+                            },
                     ) {
                         Icon(
                             modifier = Modifier.size(20.dp), // Icon size
                             painter = painterResource(id = R.drawable.search_svgrepo_com__3_),
                             contentDescription = "Parameters",
-                            tint = Color.White
+                            tint = Color.White,
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(
@@ -69,7 +69,7 @@ fun ModelsScreen(extFileDir: File?, viewModel: MainViewModel, onSearchResultButt
                             color = Color.White,
                             fontSize = 18.sp,
                             modifier = Modifier
-                                .padding(vertical = 12.dp, horizontal = 7.dp)
+                                .padding(vertical = 12.dp, horizontal = 7.dp),
                         )
                         Spacer(Modifier.weight(1f))
                         Icon(
@@ -83,7 +83,7 @@ fun ModelsScreen(extFileDir: File?, viewModel: MainViewModel, onSearchResultButt
                         modifier = Modifier
                             .fillMaxWidth(),
                         color = Color.DarkGray, // Set the color of the divider
-                        thickness = 1.dp
+                        thickness = 1.dp,
                     )
                     Spacer(Modifier.height(25.dp))
                     // Suggested Models Section
@@ -91,7 +91,7 @@ fun ModelsScreen(extFileDir: File?, viewModel: MainViewModel, onSearchResultButt
                         text = "Suggested Models",
                         color = Color.White.copy(alpha = .5f),
                         modifier = Modifier.padding(5.dp),
-                        fontSize = 18.sp
+                        fontSize = 18.sp,
                     )
                 }
             }
@@ -106,7 +106,7 @@ fun ModelsScreen(extFileDir: File?, viewModel: MainViewModel, onSearchResultButt
                             dm = dm,
                             extFilesDir = extFileDir,
                             downloadLink = source,
-                            showDeleteButton = true
+                            showDeleteButton = true,
                         )
                     }
                 }
@@ -116,7 +116,7 @@ fun ModelsScreen(extFileDir: File?, viewModel: MainViewModel, onSearchResultButt
                     modifier = Modifier
                         .fillMaxWidth(),
                     color = Color.DarkGray, // Set the color of the divider
-                    thickness = 1.dp
+                    thickness = 1.dp,
                 )
             }
 
@@ -126,7 +126,7 @@ fun ModelsScreen(extFileDir: File?, viewModel: MainViewModel, onSearchResultButt
                     text = "My Models",
                     color = Color.White.copy(alpha = .5f),
                     modifier = Modifier.padding(5.dp),
-                    fontSize = 18.sp
+                    fontSize = 18.sp,
                 )
             }
 
@@ -140,7 +140,7 @@ fun ModelsScreen(extFileDir: File?, viewModel: MainViewModel, onSearchResultButt
                             dm = dm,
                             extFilesDir = extFileDir,
                             downloadLink = source,
-                            showDeleteButton = true
+                            showDeleteButton = true,
                         )
                     }
                 }
@@ -150,7 +150,7 @@ fun ModelsScreen(extFileDir: File?, viewModel: MainViewModel, onSearchResultButt
                     Text(
                         text = "No models to show",
                         color = Color.White,
-                        modifier = Modifier.padding(top = 8.dp, start = 2.dp)
+                        modifier = Modifier.padding(top = 8.dp, start = 2.dp),
                     )
                 }
             }

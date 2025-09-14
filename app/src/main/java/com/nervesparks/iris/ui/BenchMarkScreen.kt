@@ -2,13 +2,26 @@ package com.nervesparks.iris.ui
 
 import android.os.Build
 import android.widget.Toast
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.*
+import androidx.compose.material.AlertDialog
+import androidx.compose.material.Card
+import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,7 +35,7 @@ data class BenchmarkState(
     val isRunning: Boolean = false,
     val showConfirmDialog: Boolean = false,
     val results: List<String> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
 )
 
 @Composable
@@ -40,14 +53,14 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
             .fillMaxSize()
             .padding(16.dp)
             .verticalScroll(scrollState),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Header
         Text(
             "Benchmark Information",
             style = MaterialTheme.typography.h6,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 16.dp),
         )
 
         // Device Info Card
@@ -55,10 +68,10 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp),
-            elevation = 4.dp
+            elevation = 4.dp,
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(16.dp),
             ) {
                 deviceInfo.lines().forEach { line ->
                     Text(line, modifier = Modifier.padding(vertical = 2.dp))
@@ -69,26 +82,25 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
         // Benchmark Button
 
         androidx.compose.material3.Button(
-            modifier =Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 8.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF2563EB).copy(alpha = 1.0f),
-                contentColor = Color.White
+                contentColor = Color.White,
             ),
             shape = RoundedCornerShape(8.dp),
             elevation = ButtonDefaults.buttonElevation(
                 defaultElevation = 6.dp,
-                pressedElevation = 3.dp
+                pressedElevation = 3.dp,
             ),
             onClick = {
-                if(viewModel.loadedModelName.value == ""){
-
+                if (viewModel.loadedModelName.value == "") {
                     Toast.makeText(context, "Load A Model First", Toast.LENGTH_SHORT).show()
+                } else {
+                    state = state.copy(showConfirmDialog = true)
                 }
-                else{
-                state = state.copy(showConfirmDialog = true) }},
+            },
             enabled = !state.isRunning,
-        )
-        {
+        ) {
             Text(if (state.isRunning) "Benchmarking..." else "Start Benchmark", color = Color.White)
         }
 
@@ -96,12 +108,12 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
         if (state.isRunning) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(16.dp),
             ) {
                 CircularProgressIndicator()
                 Text(
                     "Benchmarking in progress...",
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 8.dp),
                 )
             }
         }
@@ -112,18 +124,18 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp),
-                elevation = 4.dp
+                elevation = 4.dp,
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         "Benchmark Results",
                         style = MaterialTheme.typography.h6,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 8.dp),
                     )
                     state.results.forEach { result ->
                         Text(
                             result,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            modifier = Modifier.padding(vertical = 4.dp),
                         )
                     }
                 }
@@ -139,7 +151,7 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
             },
             style = MaterialTheme.typography.body1,
             color = Color.Green,
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         )
 
         // Error Display
@@ -147,7 +159,7 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
             Text(
                 error,
                 color = Color.Red,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(16.dp),
             )
         }
     }
@@ -167,7 +179,7 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
                             showConfirmDialog = false,
                             isRunning = true,
                             results = emptyList(),
-                            error = null
+                            error = null,
                         )
                         scope.launch {
                             try {
@@ -175,17 +187,17 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
 
                                 // Update tokens per second after benchmarking
                                 state = state.copy(
-                                    results = viewModel.tokensList.toList() // Fetch tokens collected
+                                    results = viewModel.tokensList.toList(), // Fetch tokens collected
                                 )
                             } catch (e: Exception) {
                                 state = state.copy(
-                                    error = "Error: ${e.message}"
+                                    error = "Error: ${e.message}",
                                 )
                             } finally {
                                 state = state.copy(isRunning = false)
                             }
                         }
-                    }
+                    },
                 ) {
                     Text("Start")
                 }
@@ -194,16 +206,14 @@ fun BenchMarkScreen(viewModel: MainViewModel) {
                 TextButton(
                     onClick = {
                         state = state.copy(showConfirmDialog = false)
-                    }
+                    },
                 ) {
                     Text("Cancel")
                 }
-            }
+            },
         )
     }
 }
-
-
 
 private fun buildDeviceInfo(viewModel: MainViewModel): String {
     return buildString {

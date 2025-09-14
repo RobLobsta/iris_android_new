@@ -8,22 +8,22 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
-import androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
 import android.llama.cpp.LLamaAndroid
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import android.os.IBinder
 import android.net.Uri
 import android.os.Bundle
+import android.os.IBinder
 import android.os.StrictMode
 import android.os.StrictMode.VmPolicy
-
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,10 +46,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -68,24 +68,19 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.getSystemService
-import java.io.File
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.nervesparks.iris.data.UserPreferencesRepository
-import com.nervesparks.iris.ui.SettingsBottomSheet
-
-
 import com.nervesparks.iris.data.database.AppDatabase
-import android.speech.SpeechRecognizer
-import android.util.Log
+import com.nervesparks.iris.ui.SettingsBottomSheet
+import java.io.File
 
 class MainViewModelFactory(
     private val context: Context,
     private val llamaAndroid: LLamaAndroid,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val appDatabase: AppDatabase
+    private val appDatabase: AppDatabase,
 ) : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -97,12 +92,11 @@ class MainViewModelFactory(
     }
 }
 
-
 class MainActivity(
 //    activityManager: ActivityManager? = null,
     downloadManager: DownloadManager? = null,
     clipboardManager: ClipboardManager? = null,
-): ComponentActivity() {
+) : ComponentActivity() {
 //    private val tag: String? = this::class.simpleName
 //
 //    private val activityManager by lazy { activityManager ?: getSystemService<ActivityManager>()!! }
@@ -113,7 +107,7 @@ class MainActivity(
     private lateinit var speechRecognizer: SpeechRecognizer
 
     private val speechRecognitionLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
+        ActivityResultContracts.StartActivityForResult(),
     ) { result ->
         if (result.resultCode == RESULT_OK) {
             val data: Intent? = result.data
@@ -137,7 +131,6 @@ class MainActivity(
         }
     }
 
-
     // Get a MemoryInfo object for the device's current memory status.
 //    private fun availableMemory(): ActivityManager.MemoryInfo {
 //        return ActivityManager.MemoryInfo().also { memoryInfo ->
@@ -148,23 +141,20 @@ class MainActivity(
     val darkNavyBlue = Color(0xFF001F3D) // Dark navy blue color
     val lightNavyBlue = Color(0xFF3A4C7C)
 
-
-
     val gradientBrush = Brush.verticalGradient(
-        colors = listOf(darkNavyBlue, lightNavyBlue)
+        colors = listOf(darkNavyBlue, lightNavyBlue),
     )
-
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.parseColor("#FF070915")//for status bar color
+        window.statusBarColor = android.graphics.Color.parseColor("#FF070915") // for status bar color
 
         StrictMode.setVmPolicy(
             VmPolicy.Builder(StrictMode.getVmPolicy())
                 .detectLeakedClosableObjects()
-                .build()
+                .build(),
         )
         val userPrefsRepo = UserPreferencesRepository.getInstance(applicationContext)
         val appDatabase = AppDatabase.getDatabase(applicationContext)
@@ -175,14 +165,12 @@ class MainActivity(
 
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
 
-
 //        val free = Formatter.formatFileSize(this, availableMemory().availMem)
 //        val total = Formatter.formatFileSize(this, availableMemory().totalMem)
         val transparentColor = Color.Transparent.toArgb()
         window.decorView.rootView.setBackgroundColor(transparentColor)
 //        viewModel.log("Current memory: $free / $total")
 //        viewModel.log("Downloads directory: ${getExternalFilesDir(null)}")
-
 
         val extFilesDir = getExternalFilesDir(null)
 
@@ -196,33 +184,29 @@ class MainActivity(
             Downloadable(
                 "Llama-3.2-3B-Instruct-Q4_K_L.gguf",
                 Uri.parse("https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_L.gguf?download=true"),
-                File(extFilesDir, "Llama-3.2-3B-Instruct-Q4_K_L.gguf")
+                File(extFilesDir, "Llama-3.2-3B-Instruct-Q4_K_L.gguf"),
 
             ),
             Downloadable(
                 "Llama-3.2-1B-Instruct-Q6_K_L.gguf",
                 Uri.parse("https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q6_K_L.gguf?download=true"),
-                File(extFilesDir, "Llama-3.2-1B-Instruct-Q6_K_L.gguf")
+                File(extFilesDir, "Llama-3.2-1B-Instruct-Q6_K_L.gguf"),
             ),
             Downloadable(
                 "stablelm-2-1_6b-chat.Q4_K_M.imx.gguf",
                 Uri.parse("https://huggingface.co/Crataco/stablelm-2-1_6b-chat-imatrix-GGUF/resolve/main/stablelm-2-1_6b-chat.Q4_K_M.imx.gguf?download=true"),
-                File(extFilesDir, "stablelm-2-1_6b-chat.Q4_K_M.imx.gguf")
-            )
+                File(extFilesDir, "stablelm-2-1_6b-chat.Q4_K_M.imx.gguf"),
+            ),
         )
 
         if (extFilesDir != null) {
             viewModel.loadExistingModels(extFilesDir)
         }
 
-
-
         setContent {
-
-
             var showSettingSheet by remember { mutableStateOf(false) }
-            var isBottomSheetVisible by rememberSaveable  { mutableStateOf(false) }
-            var modelData by rememberSaveable  { mutableStateOf<List<Map<String, String>>?>(null) }
+            var isBottomSheetVisible by rememberSaveable { mutableStateOf(false) }
+            var modelData by rememberSaveable { mutableStateOf<List<Map<String, String>>?>(null) }
             var selectedModel by remember { mutableStateOf<String?>(null) }
             var isLoading by remember { mutableStateOf(false) }
             var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -232,8 +216,8 @@ class MainActivity(
                 mutableStateOf(
                     TextFieldValue(
                         text = viewModel.userGivenModel,
-                        selection = TextRange(viewModel.userGivenModel.length) // Ensure cursor starts at the end
-                    )
+                        selection = TextRange(viewModel.userGivenModel.length), // Ensure cursor starts at the end
+                    ),
                 )
             }
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -246,9 +230,9 @@ class MainActivity(
                         modifier = Modifier
                             .width(300.dp)
                             .fillMaxHeight(),
-                        drawerContainerColor= Color(0xFF070915),
+                        drawerContainerColor = Color(0xFF070915),
 
-                        ) {
+                    ) {
                         /*Drawer content wrapper */
                         Column(
                             modifier = Modifier
@@ -258,7 +242,7 @@ class MainActivity(
                             // Top section with logo and name
                             Column {
                                 Row(
-                                    modifier =  Modifier
+                                    modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(start = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -267,45 +251,43 @@ class MainActivity(
                                         painter = painterResource(id = R.drawable.logo),
                                         contentDescription = "Centered Background Logo",
                                         modifier = Modifier.size(35.dp),
-                                        contentScale = ContentScale.Fit
+                                        contentScale = ContentScale.Fit,
                                     )
                                     Spacer(Modifier.padding(5.dp))
                                     Text(
                                         text = "Iris",
                                         fontWeight = FontWeight(500),
                                         color = Color.White,
-                                        fontSize = 30.sp
+                                        fontSize = 30.sp,
                                     )
                                     Spacer(Modifier.weight(1f))
                                     if (showSettingSheet) {
                                         SettingsBottomSheet(
-                                            viewModel= viewModel,
-                                            onDismiss = { showSettingSheet = false } // Control visibility from here
+                                            viewModel = viewModel,
+                                            onDismiss = { showSettingSheet = false }, // Control visibility from here
                                         )
                                     }
-
                                 }
                                 Row(
-                                    modifier = Modifier.padding(start = 45.dp)
+                                    modifier = Modifier.padding(start = 45.dp),
                                 ) {
                                     Text(
                                         text = "NerveSparks",
                                         color = Color(0xFF636466),
-                                        fontSize = 16.sp
+                                        fontSize = 16.sp,
                                     )
                                 }
-
                             }
                             Spacer(Modifier.height(20.dp))
-                            Column (modifier = Modifier.padding(6.dp)){
+                            Column(modifier = Modifier.padding(6.dp)) {
                                 Text(text = "Active Model", fontSize = 16.sp, color = Color(0xFF636466), modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp))
-                                Text(text = viewModel.loadedModelName.value, fontSize = 16.sp, color = Color.White, modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp) )
+                                Text(text = viewModel.loadedModelName.value, fontSize = 16.sp, color = Color.White, modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp))
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             Column(
                                 verticalArrangement = Arrangement.Bottom,
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
                                 // Star us button
                                 Box(
@@ -315,15 +297,15 @@ class MainActivity(
                                         .padding(horizontal = 16.dp)
                                         .background(
                                             color = Color(0xFF14161f),
-                                            shape = RoundedCornerShape(8.dp)
+                                            shape = RoundedCornerShape(8.dp),
                                         )
                                         .border(
                                             border = BorderStroke(
                                                 width = 1.dp,
-                                                color = Color.LightGray.copy(alpha = 0.5f)
+                                                color = Color.LightGray.copy(alpha = 0.5f),
                                             ),
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
+                                            shape = RoundedCornerShape(8.dp),
+                                        ),
                                 ) {
                                     val context = LocalContext.current
                                     Row(
@@ -337,12 +319,12 @@ class MainActivity(
                                                         Uri.parse("https://github.com/nerve-sparks/iris_android")
                                                 }
                                                 context.startActivity(intent)
-                                            }
+                                            },
                                     ) {
                                         Text(
                                             text = "Star us",
                                             color = Color(0xFF78797a),
-                                            fontSize = 14.sp
+                                            fontSize = 14.sp,
                                         )
                                         Spacer(Modifier.width(8.dp))
 
@@ -350,7 +332,7 @@ class MainActivity(
                                             modifier = Modifier
                                                 .size(24.dp),
                                             painter = painterResource(id = R.drawable.github_svgrepo_com),
-                                            contentDescription = "Github icon"
+                                            contentDescription = "Github icon",
                                         )
                                     }
                                 }
@@ -363,15 +345,15 @@ class MainActivity(
                                         .padding(horizontal = 16.dp)
                                         .background(
                                             color = Color(0xFF14161f),
-                                            shape = RoundedCornerShape(8.dp)
+                                            shape = RoundedCornerShape(8.dp),
                                         )
                                         .border(
                                             border = BorderStroke(
                                                 width = 1.dp,
-                                                color = Color.LightGray.copy(alpha = 0.5f)
+                                                color = Color.LightGray.copy(alpha = 0.5f),
                                             ),
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
+                                            shape = RoundedCornerShape(8.dp),
+                                        ),
                                 ) {
                                     val context = LocalContext.current
                                     Row(
@@ -384,16 +366,14 @@ class MainActivity(
                                                     data = Uri.parse("https://nervesparks.com")
                                                 }
                                                 context.startActivity(intent)
-                                            }
+                                            },
                                     ) {
                                         Text(
                                             text = "NerveSparks.com",
                                             color = Color(0xFF78797a),
-                                            fontSize = 14.sp
+                                            fontSize = 14.sp,
                                         )
                                         Spacer(Modifier.width(8.dp))
-
-
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(5.dp))
@@ -403,12 +383,12 @@ class MainActivity(
                                         .fillMaxWidth()
                                         .padding(end = 16.dp),
                                     horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
                                         text = "powered by",
                                         color = Color(0xFF636466),
-                                        fontSize = 14.sp
+                                        fontSize = 14.sp,
                                     )
                                     val context = LocalContext.current
                                     Text(
@@ -421,17 +401,14 @@ class MainActivity(
                                             },
                                         text = " llama.cpp",
                                         color = Color(0xFF78797a),
-                                        fontSize = 16.sp
+                                        fontSize = 16.sp,
                                     )
-
                                 }
                             }
                         }
-
                     }
                 },
             ) {
-
                 val isListening by VoiceServiceState.isListening.collectAsState()
 
                 ChatScreen(
@@ -441,7 +418,7 @@ class MainActivity(
                     models,
                     extFilesDir,
                     onVoiceClicked = { startSpeechRecognition() },
-                    isListening = isListening
+                    isListening = isListening,
                 )
             }
         }
@@ -483,16 +460,10 @@ fun LinearGradient() {
     val gradient = Brush.linearGradient(
         colors = listOf(darkNavyBlue, lightNavyBlue),
         start = Offset(0f, 300f),
-        end = Offset(0f, 1000f)
+        end = Offset(0f, 1000f),
 
     )
     Box(modifier = Modifier.background(gradient).fillMaxSize())
 }
-
-
-
-
-
-
 
 // [END android_compose_layout_material_modal_drawer]

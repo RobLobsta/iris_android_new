@@ -18,12 +18,12 @@ fun CodeBlockMessage(content: String) {
         modifier = Modifier
             .padding(horizontal = 10.dp, vertical = 4.dp)
             .background(Color.Black, shape = RoundedCornerShape(8.dp))
-            .fillMaxWidth()
+            .fillMaxWidth(),
     ) {
         Text(
             text = content.removePrefix("```"),
             style = MaterialTheme.typography.bodyLarge.copy(color = Color(0xFFA0A0A5)),
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(16.dp),
         )
     }
 }
