@@ -127,7 +127,7 @@ fun MainChatScreen (
     dm: DownloadManager,
     models: List<Downloadable>,
     extFileDir: File?,
-
+    onVoiceClicked: () -> Unit
 ){
     val kc = LocalSoftwareKeyboardController.current
     val windowInsets = WindowInsets.ime
@@ -452,19 +452,10 @@ fun MainChatScreen (
 
 
                             IconButton(onClick = {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(
-                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
-                                    )
-                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now")
-                                }
-                                speechRecognizerLauncher.launch(intent)
+                                onVoiceClicked()
                                 focusManager.clearFocus()
-
                             }) {
                                 Icon(
-//                                imageVector = Icons.Default.Send,
                                     modifier = Modifier
                                         .size(25.dp)
                                         .weight(1f),

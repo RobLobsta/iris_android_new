@@ -21,7 +21,10 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.Scaffold
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -38,6 +41,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -85,6 +90,7 @@ fun ChatScreenAppBar(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MainViewModel,
+    isListening: Boolean
 ) {
     @SuppressLint("MissingPermission")
     fun provideHapticFeedback(context: Context) {
@@ -126,11 +132,19 @@ fun ChatScreenAppBar(
 
     TopAppBar(
         title = {
-            Text(
-                stringResource(currentScreen.title),
-                color = Color.White,
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 28.sp)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(currentScreen.title),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 28.sp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(if (isListening) Color.Green else Color.Red, CircleShape)
+                )
+            }
         },
         colors = TopAppBarDefaults.mediumTopAppBarColors(
             containerColor = Color.Transparent
@@ -224,6 +238,8 @@ fun ChatScreen(
     downloadManager: DownloadManager,
     models: List<Downloadable>,
     extFileDir: File?,
+    onVoiceClicked: () -> Unit,
+    isListening: Boolean,
     navController: NavHostController = rememberNavController()
 ) {
     // Define gradient colors
@@ -255,7 +271,8 @@ fun ChatScreen(
                     navigateUp = { navController.navigateUp() },
                     onSettingsClick = {navController.navigate(ChatScreen.Settings.name)},
                     viewModel = viewModel,
-                    extFileDir = extFileDir
+                    extFileDir = extFileDir,
+                    isListening = isListening
                 )
             }
         ) { innerPadding ->
@@ -276,6 +293,7 @@ fun ChatScreen(
                         clipboard = clipboardManager,
                         models = models,
                         extFileDir = extFileDir,
+                        onVoiceClicked = onVoiceClicked
                     )
                 }
                 composable(route = ChatScreen.Settings.name) {

@@ -1,7 +1,16 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp") version "1.9.0-1.0.12"
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -25,6 +34,7 @@ android {
             // Add NDK properties if wanted, e.g.
             // abiFilters += listOf("arm64-v8a")
         }
+        buildConfigField("String", "PICOVOICE_ACCESS_KEY", "\"${localProperties.getProperty("PICOVOICE_ACCESS_KEY")}\"")
     }
 
     buildTypes {
@@ -46,6 +56,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -102,4 +113,6 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
 
+    // Porcupine
+    implementation("ai.picovoice:porcupine-android:3.0.3")
 }
