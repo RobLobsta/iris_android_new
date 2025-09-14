@@ -15,8 +15,14 @@ import kotlin.concurrent.thread
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+
+interface LlamaTokenCallback {
+    fun onToken(token: String)
+}
 
 class LLamaAndroid {
     private val tag: String? = this::class.simpleName
@@ -119,6 +125,17 @@ class LLamaAndroid {
         nLen: Int,
         ncur: IntVar
     ): String?
+
+    external fun completion_stream(
+        context: Long,
+        batch: Long,
+        sampler: Long,
+        nLen: Int,
+        ncur: IntVar,
+        callback: LlamaTokenCallback
+    )
+
+    external fun stop_completion()
 
     external fun kv_cache_clear(context: Long)
 
@@ -258,57 +275,30 @@ class LLamaAndroid {
         return data
     }
 
-    suspend fun send(message: String): Flow<String> = flow {
+    suspend fun send(message: String): Flow<String> = callbackFlow {
         stopGeneration = false
         _isSending.value = true
-        when (val state = threadLocalState.get()) {
-            is State.Loaded -> {
-                val ncur = IntVar(completion_init(state.context, state.batch, message, nlen))
-                var end_token_store = ""
-                var chat_len = 0
-                while (chat_len <= nlen && ncur.value < context_size && !stopGeneration) {
-                    _isSending.value = true
-                    val str = completion_loop(state.context, state.batch, state.sampler, nlen, ncur)
-                    chat_len += 1
-                    if (str == "```" || str == "``") {
-                        _isMarked.value = !_isMarked.value
-                    }
-                    if (str == null) {
-                        _isSending.value = false
-                        _isCompleteEOT.value = true
-                        break
-                    }
-                    end_token_store = end_token_store+str
-                    if((end_token_store.length > state.modelEotStr.length) and end_token_store.contains(state.modelEotStr)){
-                        _isSending.value = false
-                        _isCompleteEOT.value = false
-                        break
-                    }
-                    if((end_token_store.length/2) > state.modelEotStr.length ){
-                        end_token_store = end_token_store.slice(end_token_store.length/2..end_token_store.length-1)
-                    }
-
-
-//                    if (str == "</s>" || str == " User" || str== " user" || str == "user" || str == "<|im_end|>" || str == "\n" +
-//                        "                                                                                                    "
-//                    ) {
-//
-//                        _isSending.value = false
-//                        break
-//
-//                    }
-                    if (stopGeneration) {
-                        break
-                    }
-                    emit(str)
-                }
-                kv_cache_clear(state.context)
-            }
-            else -> {
-                _isSending.value = false
+        val callback = object : LlamaTokenCallback {
+            override fun onToken(token: String) {
+                trySend(token)
             }
         }
-        _isSending.value = false
+        withContext(runLoop) {
+            when (val state = threadLocalState.get()) {
+                is State.Loaded -> {
+                    val ncur = IntVar(completion_init(state.context, state.batch, message, nlen))
+                    completion_stream(state.context, state.batch, state.sampler, nlen, ncur, callback)
+                    close()
+                }
+                else -> {
+                    close()
+                }
+            }
+        }
+        awaitClose {
+            stop_completion()
+            _isSending.value = false
+        }
     }.flowOn(runLoop)
 
 
