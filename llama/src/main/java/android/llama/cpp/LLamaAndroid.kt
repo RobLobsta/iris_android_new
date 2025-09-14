@@ -23,8 +23,6 @@ class LLamaAndroid {
     private var stopGeneration: Boolean = false
     //private var model_eot_str: String = ""
 
-    private val threadLocalState: ThreadLocal<State> = ThreadLocal.withInitial { State.Idle }
-
     private val _isSending = mutableStateOf(false)
     private val isSending: Boolean by _isSending
 
@@ -79,18 +77,18 @@ class LLamaAndroid {
     private val nlen: Int = 1024
     private val context_size: Int = 4096
 
-    private external fun log_to_android()
-    private external fun load_model(filename: String): Long
-    private external fun free_model(model: Long)
-    private external fun new_context(model: Long, userThreads: Int): Long
-    private external fun free_context(context: Long)
-    private external fun backend_init(numa: Boolean)
-    private external fun backend_free()
-    private external fun new_batch(nTokens: Int, embd: Int, nSeqMax: Int): Long
-    private external fun free_batch(batch: Long)
-    private external fun new_sampler(top_p: Float, top_k: Int, temp: Float): Long
-    private external fun free_sampler(sampler: Long)
-    private external fun bench_model(
+    external fun log_to_android()
+    external fun load_model(filename: String): Long
+    external fun free_model(model: Long)
+    external fun new_context(model: Long, userThreads: Int): Long
+    external fun free_context(context: Long)
+    external fun backend_init(numa: Boolean)
+    external fun backend_free()
+    external fun new_batch(nTokens: Int, embd: Int, nSeqMax: Int): Long
+    external fun free_batch(batch: Long)
+    external fun new_sampler(top_p: Float, top_k: Int, temp: Float): Long
+    external fun free_sampler(sampler: Long)
+    external fun bench_model(
         context: Long,
         model: Long,
         batch: Long,
@@ -100,21 +98,21 @@ class LLamaAndroid {
         nr: Int
     ): String
 
-    private external fun system_info(): String
+    external fun system_info(): String
 
-    private external fun completion_init(
+    external fun completion_init(
         context: Long,
         batch: Long,
         text: String,
         nLen: Int
     ): Int
 
-    private external fun oaicompat_completion_param_parse(
+    external fun oaicompat_completion_param_parse(
         allmessages: Array<Map<String, String>>,
         model: Long
     ): String
 
-    private external fun completion_loop(
+    external fun completion_loop(
         context: Long,
         batch: Long,
         sampler: Long,
@@ -122,11 +120,32 @@ class LLamaAndroid {
         ncur: IntVar
     ): String?
 
-    private external fun kv_cache_clear(context: Long)
+    external fun kv_cache_clear(context: Long)
 
-    private external fun get_eot_str(model: Long): String
+    external fun get_eot_str(model: Long): String
 
-    private external fun perplexity(context: Long, text: String): Double
+    external fun perplexity(context: Long, text: String): Double
+
+    external fun llava_eval_image(
+        context: Long,
+        clip_context: Long,
+        imageData: ByteArray,
+        width: Int,
+        height: Int
+    )
+
+    external fun load_clip_model(path: String): Long
+
+    suspend fun loadClipModel(path: String) {
+        withContext(runLoop) {
+            val clipModel = load_clip_model(path)
+            if (clipModel == 0L) throw IllegalStateException("load_clip_model() failed")
+            val state = threadLocalState.get()
+            if (state is State.Loaded) {
+                threadLocalState.set(state.copy(clipModel = clipModel))
+            }
+        }
+    }
 
     external fun quantizeNative(
         fname_inp: String,
@@ -368,8 +387,10 @@ class LLamaAndroid {
 
     }
 
+    private val threadLocalState: ThreadLocal<State> = ThreadLocal.withInitial { State.Idle }
+
     companion object {
-        private class IntVar(value: Int) {
+        class IntVar(value: Int) {
             @Volatile
             var value: Int = value
                 private set
@@ -383,7 +404,23 @@ class LLamaAndroid {
 
         private sealed interface State {
             data object Idle: State
-            data class Loaded(val model: Long, val context: Long, val batch: Long, val sampler: Long , val modelEotStr:String): State
+            data class Loaded(val model: Long, val context: Long, val batch: Long, val sampler: Long, val modelEotStr:String, var clipModel: Long = 0L): State
+        }
+
+        fun getClipContext(): Long {
+            val state = _instance.threadLocalState.get()
+            if (state is State.Loaded) {
+                return state.clipModel
+            }
+            return 0L
+        }
+
+        fun getContext(): Long {
+            val state = _instance.threadLocalState.get()
+            if (state is State.Loaded) {
+                return state.context
+            }
+            return 0L
         }
 
         // Enforce only one instance of Llm.

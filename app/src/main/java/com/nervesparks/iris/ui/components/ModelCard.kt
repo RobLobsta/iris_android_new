@@ -33,6 +33,8 @@ fun ModelCard(
     var isDeleted by remember { mutableStateOf(false) }
     var showDeletedMessage by remember { mutableStateOf(false) }
     var isDefaultModel by remember { mutableStateOf(viewModel.defaultModelName.value == modelName) }
+    var showScanResult by remember { mutableStateOf(false) }
+    var scanResult by remember { mutableStateOf("") }
 
     LaunchedEffect(isDeleted) {
         if (isDeleted) {
@@ -157,6 +159,38 @@ fun ModelCard(
                             }
                         }
                     }
+                }
+
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            val result = viewModel.scanModel(File(extFilesDir, modelName).path)
+                            scanResult = result
+                            showScanResult = true
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(Color(0xFF2563eb)),
+                ) {
+                    Text(text = "Scan", color = Color.White)
+                }
+
+                if (showScanResult) {
+                    AlertDialog(
+                        textContentColor = Color.LightGray,
+                        containerColor =  Color(0xFF233340),
+                        modifier = Modifier.background(shape = RoundedCornerShape(8.dp), color = Color(0xFF233340)),
+                        onDismissRequest = { showScanResult = false },
+                        title = { Text("Scan Result", color = Color.White) },
+                        text = { Text(scanResult) },
+                        confirmButton = {
+                            Button(
+                                onClick = { showScanResult = false },
+                                colors = ButtonDefaults.buttonColors(Color.Black)
+                            ) {
+                                Text("OK")
+                            }
+                        }
+                    )
                 }
             }
 

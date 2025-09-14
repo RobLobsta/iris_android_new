@@ -14,7 +14,7 @@ class EmbeddingActivity : ComponentActivity() {
         val llamaAndroid = android.llama.cpp.LLamaAndroid.instance()
         val userPrefsRepo = com.nervesparks.iris.data.UserPreferencesRepository.getInstance(applicationContext)
         val appDatabase = com.nervesparks.iris.data.database.AppDatabase.getDatabase(applicationContext)
-        val viewModelFactory = MainViewModelFactory(llamaAndroid, userPrefsRepo, appDatabase)
+        val viewModelFactory = MainViewModelFactory(applicationContext, llamaAndroid, userPrefsRepo, appDatabase)
         viewModel = ViewModelProvider(this, viewModelFactory)[MainViewModel::class.java]
 
         setContent {

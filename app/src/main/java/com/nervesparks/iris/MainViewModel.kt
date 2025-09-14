@@ -30,6 +30,7 @@ import com.nervesparks.iris.data.database.ChatMessage
 import kotlinx.coroutines.flow.*
 
 class MainViewModel(
+    private val context: Context,
     val llamaAndroid: LLamaAndroid = LLamaAndroid.instance(),
     private val userPreferencesRepository: UserPreferencesRepository,
     private val chatMessageDao: ChatMessageDao
@@ -48,6 +49,13 @@ class MainViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _uiState = MutableStateFlow(MainUiState())
+    val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    private val ragManager: RAGManager = RAGManager(context, llamaAndroid) {
+        _uiState.update { it.copy(isRagReady = true) }
+    }
+
     companion object {
 //        @JvmStatic
 //        private val NanosPerSecond = 1_000_000_000.0
@@ -56,9 +64,11 @@ class MainViewModel(
 
     private val _defaultModelName = mutableStateOf("")
     val defaultModelName: State<String> = _defaultModelName
+    private val tag: String = "MainViewModel"
 
     init {
         loadDefaultModelName()
+        Log.i(tag, llamaAndroid.system_info())
     }
     private fun loadDefaultModelName(){
         _defaultModelName.value = userPreferencesRepository.getDefaultModelName()
@@ -70,7 +80,7 @@ class MainViewModel(
     }
 
     lateinit var selectedModel: String
-    private val tag: String? = this::class.simpleName
+
 
     var newShowModal by mutableStateOf(false)
     var showDownloadInfoModal by mutableStateOf(false)
@@ -276,10 +286,25 @@ class MainViewModel(
         val userMessage = removeExtraWhiteSpaces(message)
         message = ""
 
-        if (userMessage.isNotBlank()) {
+        if (userMessage.isNotBlank() || selectedImageUri != null) {
             viewModelScope.launch {
-                // Save user message
-                val userEmbedding = llamaAndroid.embedding(userMessage)
+                if (selectedImageUri != null && preprocessedImage != null) {
+                    withContext(Dispatchers.IO) {
+                        llamaAndroid.llava_eval_image(
+                            LLamaAndroid.getContext(),
+                            LLamaAndroid.getClipContext(),
+                            preprocessedImage!!,
+                            224,
+                            224
+                        )
+                    }
+                    selectedImageUri = null
+                    preprocessedImage = null
+                }
+
+                val userEmbedding = withContext(Dispatchers.IO) {
+                    llamaAndroid.embedding(userMessage)
+                }
                 val userChatMessage = ChatMessage(
                     text = userMessage,
                     timestamp = System.currentTimeMillis(),
@@ -288,34 +313,52 @@ class MainViewModel(
                 )
                 chatMessageDao.insert(userChatMessage)
 
-                // Get assistant's response
+                val prompt = if (_uiState.value.isRagEnabled) {
+                    val contextChunks = withContext(Dispatchers.IO) {
+                        ragManager.search(userMessage)
+                    }
+                    val context = contextChunks.joinToString("\n\n")
+                    "Context: $context\n\nQuestion: $userMessage"
+                } else {
+                    userMessage
+                }
+
                 val assistantResponse = StringBuilder()
                 try {
                     if (first) {
                         val systemMessage = "This is a conversation between User and Iris, a friendly chatbot. Iris is helpful, kind, honest, good at writing, and never fails to answer any requests immediately and with precision."
+                        val systemEmbedding = withContext(Dispatchers.IO) {
+                            llamaAndroid.embedding(systemMessage)
+                        }
                         val systemChatMessage = ChatMessage(
                             text = systemMessage,
                             timestamp = System.currentTimeMillis(),
                             isUser = false,
-                            embedding = floatArrayToByteArray(llamaAndroid.embedding(systemMessage))
+                            embedding = floatArrayToByteArray(systemEmbedding)
                         )
                         chatMessageDao.insert(systemChatMessage)
 
                         val hiMessage = "Hi"
+                        val hiEmbedding = withContext(Dispatchers.IO) {
+                            llamaAndroid.embedding(hiMessage)
+                        }
                         val hiChatMessage = ChatMessage(
                             text = hiMessage,
                             timestamp = System.currentTimeMillis(),
                             isUser = true,
-                            embedding = floatArrayToByteArray(llamaAndroid.embedding(hiMessage))
+                            embedding = floatArrayToByteArray(hiEmbedding)
                         )
                         chatMessageDao.insert(hiChatMessage)
 
                         val howMayIHelpYouMessage = "How may I help You?"
+                        val howMayIHelpYouEmbedding = withContext(Dispatchers.IO) {
+                            llamaAndroid.embedding(howMayIHelpYouMessage)
+                        }
                         val howMayIHelpYouChatMessage = ChatMessage(
                             text = howMayIHelpYouMessage,
                             timestamp = System.currentTimeMillis(),
                             isUser = false,
-                            embedding = floatArrayToByteArray(llamaAndroid.embedding(howMayIHelpYouMessage))
+                            embedding = floatArrayToByteArray(howMayIHelpYouEmbedding)
                         )
                         chatMessageDao.insert(howMayIHelpYouChatMessage)
                         first = false
@@ -323,12 +366,11 @@ class MainViewModel(
 
                     val messagesForTemplate = chatMessages.value.map {
                         mapOf("role" to if (it.isUser) "user" else "assistant", "content" to it.text)
-                    } + mapOf("role" to "user", "content" to userMessage)
+                    } + mapOf("role" to "user", "content" to prompt)
 
                     llamaAndroid.send(llamaAndroid.getTemplate(messagesForTemplate))
                         .catch {
                             Log.e(tag, "send() failed", it)
-                            // Handle error appropriately
                         }
                         .collect { response ->
                             assistantResponse.append(response)
@@ -336,14 +378,15 @@ class MainViewModel(
                                 text = assistantResponse.toString(),
                                 timestamp = System.currentTimeMillis(),
                                 isUser = false,
-                                embedding = byteArrayOf() // Empty embedding for now
+                                embedding = byteArrayOf()
                             )
                         }
                 } finally {
                     val finalResponse = assistantResponse.toString()
                     if (finalResponse.isNotBlank()) {
-                        // Save assistant message
-                        val assistantEmbedding = llamaAndroid.embedding(finalResponse)
+                        val assistantEmbedding = withContext(Dispatchers.IO) {
+                            llamaAndroid.embedding(finalResponse)
+                        }
                         val assistantChatMessage = ChatMessage(
                             text = finalResponse,
                             timestamp = System.currentTimeMillis(),
@@ -358,6 +401,10 @@ class MainViewModel(
         }
     }
 
+    fun toggleRag() {
+        _uiState.update { it.copy(isRagEnabled = !it.isRagEnabled) }
+    }
+
     private fun floatArrayToByteArray(floatArray: FloatArray): ByteArray {
         val byteBuffer = java.nio.ByteBuffer.allocate(floatArray.size * 4)
         for (value in floatArray) {
@@ -366,51 +413,25 @@ class MainViewModel(
         return byteBuffer.array()
     }
 
-//    fun bench(pp: Int, tg: Int, pl: Int, nr: Int = 1) {
-//        viewModelScope.launch {
-//            try {
-//                val start = System.nanoTime()
-//                val warmupResult = llamaAndroid.bench(pp, tg, pl, nr)
-//                val end = System.nanoTime()
-//
-//                messages += warmupResult
-//
-//                val warmup = (end - start).toDouble() / NanosPerSecond
-//                messages += "Warm up time: $warmup seconds, please wait..."
-//
-//                if (warmup > 5.0) {
-//                    messages += "Warm up took too long, aborting benchmark"
-//                    return@launch
-//                }
-//
-//                messages += llamaAndroid.bench(512, 128, 1, 3)
-//            } catch (exc: IllegalStateException) {
-//                Log.e(tag, "bench() failed", exc)
-//                messages += exc.message!!
-//            }
-//        }
-//    }
-
     suspend fun unload(){
         llamaAndroid.unload()
     }
 
-    var tokensList = mutableListOf<String>() // Store emitted tokens
-    var benchmarkStartTime: Long = 0L // Track the benchmark start time
-    var tokensPerSecondsFinal: Double by mutableStateOf(0.0) // Track tokens per second and trigger UI updates
-    var isBenchmarkingComplete by mutableStateOf(false) // Flag to track if benchmarking is complete
+    var tokensList = mutableListOf<String>()
+    var benchmarkStartTime: Long = 0L
+    var tokensPerSecondsFinal: Double by mutableStateOf(0.0)
+    var isBenchmarkingComplete by mutableStateOf(false)
 
     fun myCustomBenchmark() {
         viewModelScope.launch {
             try {
-                tokensList.clear() // Reset the token list before benchmarking
-                benchmarkStartTime = System.currentTimeMillis() // Record the start time
-                isBenchmarkingComplete = false // Reset benchmarking flag
+                tokensList.clear()
+                benchmarkStartTime = System.currentTimeMillis()
+                isBenchmarkingComplete = false
 
-                // Launch a coroutine to update the tokens per second every second
                 launch {
                     while (!isBenchmarkingComplete) {
-                        delay(1000L) // Delay 1 second
+                        delay(1000L)
                         val elapsedTime = System.currentTimeMillis() - benchmarkStartTime
                         if (elapsedTime > 0) {
                             tokensPerSecondsFinal = tokensList.size.toDouble() / (elapsedTime / 1000.0)
@@ -421,7 +442,7 @@ class MainViewModel(
                 llamaAndroid.myCustomBenchmark()
                     .collect { emittedString ->
                         if (emittedString != null) {
-                            tokensList.add(emittedString) // Add each token to the list
+                            tokensList.add(emittedString)
                             Log.d(tag, "Token collected: $emittedString")
                         }
                     }
@@ -432,7 +453,6 @@ class MainViewModel(
             } catch (exc: Exception) {
                 Log.e(tag, "Unexpected error during myCustomBenchmark()", exc)
             } finally {
-                // Benchmark complete, log the final tokens per second value
                 val elapsedTime = System.currentTimeMillis() - benchmarkStartTime
                 val finalTokensPerSecond = if (elapsedTime > 0) {
                     tokensList.size.toDouble() / (elapsedTime / 1000.0)
@@ -441,16 +461,11 @@ class MainViewModel(
                 }
                 Log.d(tag, "Benchmark complete. Tokens/sec: $finalTokensPerSecond")
 
-                // Update the final tokens per second and stop updating the value
                 tokensPerSecondsFinal = finalTokensPerSecond
-                isBenchmarkingComplete = true // Mark benchmarking as complete
+                isBenchmarkingComplete = true
             }
         }
     }
-
-
-
-
 
     var loadedModelName = mutableStateOf("");
 
@@ -462,8 +477,8 @@ class MainViewModel(
                 Log.e(tag, "load() failed", exc)
             }
             try {
-                var modelName = pathToModel.split("/")
-                loadedModelName.value = modelName.last()
+                val modelName = pathToModel.split("/").last()
+                loadedModelName.value = modelName
                 newShowModal = false
                 showModal= false
                 showAlert = true
@@ -472,7 +487,6 @@ class MainViewModel(
 
             } catch (exc: IllegalStateException) {
                 Log.e(tag, "load() failed", exc)
-//                addMessage("error", exc.message ?: "")
             }
             showModal = false
             showAlert = false
@@ -481,7 +495,6 @@ class MainViewModel(
     }
 
     private fun removeExtraWhiteSpaces(input: String): String {
-        // Replace multiple white spaces with a single space
         return input.replace("\\s+".toRegex(), " ")
     }
 
@@ -509,7 +522,6 @@ class MainViewModel(
     }
 
     fun log(message: String) {
-//        addMessage("log", message)
     }
 
     fun getIsSending(): Boolean {
@@ -530,6 +542,88 @@ class MainViewModel(
 
     suspend fun perplexity(text: String): Double {
         return llamaAndroid.perplexity(text)
+    }
+
+    suspend fun scanModel(filePath: String): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                val file = File(filePath)
+                if (!file.exists()) {
+                    return@withContext "Model file not found."
+                }
+
+                // Calculate checksum
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                file.inputStream().use { fis ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (fis.read(buffer).also { bytesRead = it } != -1) {
+                        digest.update(buffer, 0, bytesRead)
+                    }
+                }
+                val checksum = digest.digest().joinToString("") { "%02x".format(it) }
+
+                // Check compatibility
+                var isCompatible = false
+                try {
+                    llamaAndroid.load(filePath, userThreads = 1, topK = 0, topP = 0f, temp = 0f)
+                    isCompatible = true
+                    llamaAndroid.unload()
+                } catch (e: Exception) {
+                    // Model is not compatible
+                }
+
+                "Checksum: $checksum\nCompatible: $isCompatible"
+            } catch (e: Exception) {
+                "Error scanning model: ${e.message}"
+            }
+        }
+    }
+
+    var selectedImageUri by mutableStateOf<Uri?>(null)
+    var preprocessedImage by mutableStateOf<ByteArray?>(null)
+    var mmprojPath by mutableStateOf<String?>(null)
+
+    fun onImageSelected(uri: Uri?) {
+        selectedImageUri = uri
+        viewModelScope.launch {
+            preprocessedImage = preprocessImage(uri)
+        }
+    }
+
+    fun loadMmproj(path: String) {
+        mmprojPath = path
+        viewModelScope.launch {
+            llamaAndroid.loadClipModel(path)
+        }
+    }
+
+    private suspend fun preprocessImage(uri: Uri?): ByteArray? {
+        if (uri == null) {
+            return null
+        }
+        return withContext(Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+
+                // Resize
+                val resizedBitmap = android.graphics.Bitmap.createScaledBitmap(bitmap, 224, 224, true)
+
+                // Center Crop
+                val cropSize = 224
+                val x = (resizedBitmap.width - cropSize) / 2
+                val y = (resizedBitmap.height - cropSize) / 2
+                val croppedBitmap = android.graphics.Bitmap.createBitmap(resizedBitmap, x, y, cropSize, cropSize)
+
+                val byteStream = java.io.ByteArrayOutputStream()
+                croppedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 100, byteStream)
+                byteStream.toByteArray()
+            } catch (e: Exception) {
+                Log.e(tag, "Error preprocessing image: ${e.message}")
+                null
+            }
+        }
     }
 }
 
