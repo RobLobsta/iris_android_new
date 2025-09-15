@@ -220,207 +220,17 @@ class MainActivity(
                     ),
                 )
             }
-            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-            val scope = rememberCoroutineScope()
-            ModalNavigationDrawer(
+            val isListening by VoiceServiceState.isListening.collectAsState()
 
-                drawerState = drawerState,
-                drawerContent = {
-                    ModalDrawerSheet(
-                        modifier = Modifier
-                            .width(300.dp)
-                            .fillMaxHeight(),
-                        drawerContainerColor = Color(0xFF070915),
-
-                    ) {
-                        /*Drawer content wrapper */
-                        Column(
-                            modifier = Modifier
-                                .padding(5.dp)
-                                .fillMaxHeight(),
-                        ) {
-                            // Top section with logo and name
-                            Column {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Image(
-                                        painter = painterResource(id = R.drawable.logo),
-                                        contentDescription = "Centered Background Logo",
-                                        modifier = Modifier.size(35.dp),
-                                        contentScale = ContentScale.Fit,
-                                    )
-                                    Spacer(Modifier.padding(5.dp))
-                                    Text(
-                                        text = "Iris",
-                                        fontWeight = FontWeight(500),
-                                        color = Color.White,
-                                        fontSize = 30.sp,
-                                    )
-                                    Spacer(Modifier.weight(1f))
-                                    if (showSettingSheet) {
-                                        SettingsBottomSheet(
-                                            viewModel = viewModel,
-                                            onDismiss = { showSettingSheet = false }, // Control visibility from here
-                                        )
-                                    }
-                                }
-                                Row(
-                                    modifier = Modifier.padding(start = 45.dp),
-                                ) {
-                                    Text(
-                                        text = "NerveSparks",
-                                        color = Color(0xFF636466),
-                                        fontSize = 16.sp,
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.height(20.dp))
-                            Column(modifier = Modifier.padding(6.dp)) {
-                                Text(text = "Active Model", fontSize = 16.sp, color = Color(0xFF636466), modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp))
-                                Text(text = viewModel.loadedModelName.value, fontSize = 16.sp, color = Color.White, modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp))
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            Column(
-                                verticalArrangement = Arrangement.Bottom,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                // Star us button
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp)
-                                        .padding(horizontal = 16.dp)
-                                        .background(
-                                            color = Color(0xFF14161f),
-                                            shape = RoundedCornerShape(8.dp),
-                                        )
-                                        .border(
-                                            border = BorderStroke(
-                                                width = 1.dp,
-                                                color = Color.LightGray.copy(alpha = 0.5f),
-                                            ),
-                                            shape = RoundedCornerShape(8.dp),
-                                        ),
-                                ) {
-                                    val context = LocalContext.current
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clickable {
-                                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                    data =
-                                                        Uri.parse("https://github.com/nerve-sparks/iris_android")
-                                                }
-                                                context.startActivity(intent)
-                                            },
-                                    ) {
-                                        Text(
-                                            text = "Star us",
-                                            color = Color(0xFF78797a),
-                                            fontSize = 14.sp,
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-
-                                        Image(
-                                            modifier = Modifier
-                                                .size(24.dp),
-                                            painter = painterResource(id = R.drawable.github_svgrepo_com),
-                                            contentDescription = "Github icon",
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(5.dp))
-                                // NerveSparks button
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp)
-                                        .padding(horizontal = 16.dp)
-                                        .background(
-                                            color = Color(0xFF14161f),
-                                            shape = RoundedCornerShape(8.dp),
-                                        )
-                                        .border(
-                                            border = BorderStroke(
-                                                width = 1.dp,
-                                                color = Color.LightGray.copy(alpha = 0.5f),
-                                            ),
-                                            shape = RoundedCornerShape(8.dp),
-                                        ),
-                                ) {
-                                    val context = LocalContext.current
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clickable {
-                                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                    data = Uri.parse("https://nervesparks.com")
-                                                }
-                                                context.startActivity(intent)
-                                            },
-                                    ) {
-                                        Text(
-                                            text = "NerveSparks.com",
-                                            color = Color(0xFF78797a),
-                                            fontSize = 14.sp,
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(5.dp))
-                                // Powered by section - Right-aligned
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(end = 16.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = "powered by",
-                                        color = Color(0xFF636466),
-                                        fontSize = 14.sp,
-                                    )
-                                    val context = LocalContext.current
-                                    Text(
-                                        modifier = Modifier
-                                            .clickable {
-                                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                    data = Uri.parse("https://github.com/ggerganov/llama.cpp")
-                                                }
-                                                context.startActivity(intent)
-                                            },
-                                        text = " llama.cpp",
-                                        color = Color(0xFF78797a),
-                                        fontSize = 16.sp,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-            ) {
-                val isListening by VoiceServiceState.isListening.collectAsState()
-
-                ChatScreen(
-                    viewModel,
-                    clipboardManager,
-                    downloadManager,
-                    models,
-                    extFilesDir,
-                    onVoiceClicked = { startSpeechRecognition() },
-                    isListening = isListening,
-                )
-            }
+            IrisApp(
+                viewModel,
+                clipboardManager,
+                downloadManager,
+                models,
+                extFilesDir,
+                onVoiceClicked = { startSpeechRecognition() },
+                isListening = isListening,
+            )
         }
     }
 
@@ -451,19 +261,6 @@ class MainActivity(
         intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now")
         speechRecognitionLauncher.launch(intent)
     }
-}
-
-@Composable
-fun LinearGradient() {
-    val darkNavyBlue = Color(0xFF050a14)
-    val lightNavyBlue = Color(0xFF051633)
-    val gradient = Brush.linearGradient(
-        colors = listOf(darkNavyBlue, lightNavyBlue),
-        start = Offset(0f, 300f),
-        end = Offset(0f, 1000f),
-
-    )
-    Box(modifier = Modifier.background(gradient).fillMaxSize())
 }
 
 // [END android_compose_layout_material_modal_drawer]

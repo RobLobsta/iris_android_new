@@ -24,11 +24,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
 fun AboutScreen() {
+    val context = LocalContext.current
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -62,6 +67,44 @@ fun AboutScreen() {
 
         items(faqs) { faq ->
             FaqItem(question = faq.first, answer = faq.second)
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(24.dp))
+            SectionHeader(text = "Acknowledgments")
+        }
+
+        item {
+            Text(
+                text = "Star us on Github",
+                color = Color.White,
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/nerve-sparks/iris_android"))
+                    context.startActivity(intent)
+                }
+            )
+        }
+
+        item {
+            Text(
+                text = "NerveSparks.com",
+                color = Color.White,
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://nervesparks.com"))
+                    context.startActivity(intent)
+                }
+            )
+        }
+
+        item {
+            Text(
+                text = "powered by llama.cpp",
+                color = Color.White,
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ggerganov/llama.cpp"))
+                    context.startActivity(intent)
+                }
+            )
         }
     }
 }
