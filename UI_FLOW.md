@@ -140,7 +140,42 @@ This screen is for benchmarking the performance of the models.
 *   **Tokens Per Second:**
     *   Displays the tokens per second speed.
 
-## 8. Navigation Drawer
+## 8. Quantize Screen (`QuantizeScreen.kt`)
+
+This screen allows the user to quantize models.
+
+### UI Elements and Functionality
+
+*   **Model Name:**
+    *   Displays the name of the model to be quantized.
+*   **Quantize Type:**
+    *   A dropdown to select the quantization type.
+*   **Quantize Button:**
+    *   A `Button` that starts the quantization process.
+
+## 9. Embedding Screen (`EmbeddingScreen.kt`)
+
+This screen is for creating embeddings from text.
+
+### UI Elements and Functionality
+
+*   **Input Text:**
+    *   A `TextField` to enter the text to be embedded.
+*   **Create Embedding Button:**
+    *   A `Button` that starts the embedding process.
+
+## 10. Search Screen (`SearchActivity.java`)
+
+This screen is for searching with embeddings.
+
+### UI Elements and Functionality
+
+*   **Input Text:**
+    *   A `TextField` to enter the search query.
+*   **Search Button:**
+    *   A `Button` that initiates the search.
+
+## 11. Navigation Drawer
 
 The app has a modal navigation drawer that can be opened from the main chat screen.
 
