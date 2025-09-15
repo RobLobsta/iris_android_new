@@ -261,6 +261,7 @@ class MainViewModel(
     var switchModal by mutableStateOf(false)
     var currentDownloadable: Downloadable? by mutableStateOf(null)
 
+    @Deprecated("Super class method is deprecated")
     override fun onCleared() {
         textToSpeech?.shutdown()
         super.onCleared()
