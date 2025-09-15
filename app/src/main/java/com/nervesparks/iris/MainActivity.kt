@@ -17,6 +17,7 @@ import android.os.StrictMode.VmPolicy
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -147,9 +148,15 @@ class MainActivity(
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(
+                scrim = android.graphics.Color.parseColor("#FF070915"),
+            ),
+            navigationBarStyle = SystemBarStyle.dark(
+                scrim = android.graphics.Color.parseColor("#FF070915"),
+            )
+        )
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.parseColor("#FF070915") // for status bar color
 
         StrictMode.setVmPolicy(
             VmPolicy.Builder(StrictMode.getVmPolicy())

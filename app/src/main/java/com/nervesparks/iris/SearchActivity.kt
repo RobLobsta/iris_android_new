@@ -86,7 +86,8 @@ fun SearchScreen(viewModel: SearchViewModel) {
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
                         .clickable {
-                            clipboardManager.setText(AnnotatedString(message.text))
+                            val clipData = android.content.ClipData.newPlainText("text label", message.text)
+                            clipboardManager.setPrimaryClip(clipData)
                         },
                 ) {
                     Column(modifier = Modifier.padding(8.dp)) {

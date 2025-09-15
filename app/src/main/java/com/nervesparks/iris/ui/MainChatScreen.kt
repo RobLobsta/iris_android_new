@@ -879,7 +879,8 @@ fun MessageBottomSheet(
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
                     onClick = {
-                        clipboard.setText(AnnotatedString(message))
+                        val clipData = android.content.ClipData.newPlainText("text label", message)
+                        clipboard.setPrimaryClip(clipData)
                         Toast.makeText(context, "Text copied!", Toast.LENGTH_SHORT).show()
                         onDismiss()
                     },
