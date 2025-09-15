@@ -89,6 +89,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -105,7 +106,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.toSize
 import com.nervesparks.iris.Downloadable
 import com.nervesparks.iris.LinearGradient
 import com.nervesparks.iris.MainViewModel
@@ -114,23 +114,24 @@ import com.nervesparks.iris.ui.components.CodeBlockMessage
 import com.nervesparks.iris.ui.components.DownloadModal
 import com.nervesparks.iris.ui.components.LoadingModal
 import com.nervesparks.iris.ui.components.UserOrAssistantMessage
-import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MainChatScreen(
-    onNextButtonClicked: () -> Unit,
     viewModel: MainViewModel,
     clipboard: ClipboardManager,
     dm: DownloadManager,
     models: List<Downloadable>,
     extFileDir: File?,
     onVoiceClicked: () -> Unit,
+    isListening: Boolean,
+    onNextButtonClicked: () -> Unit,
 ) {
     val kc = LocalSoftwareKeyboardController.current
     val windowInsets = WindowInsets.ime
     val focusManager = LocalFocusManager.current
+    val coroutineScope = rememberCoroutineScope()
     println("Thread started: ${Thread.currentThread().name}")
     val Prompts = listOf(
         "Explain how to develop a consistent reading habit.",
@@ -193,47 +194,7 @@ fun MainChatScreen(
         LinearGradient()
 
         // Screen content
-        Column() {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val context = LocalContext.current
-                Text("RAG", color = Color.White)
-                Switch(
-                    checked = uiState.isRagEnabled,
-                    onCheckedChange = { viewModel.toggleRag() },
-                    enabled = uiState.isRagReady,
-                )
-                IconButton(onClick = {
-                    context.startActivity(Intent(context, com.nervesparks.iris.QuantizeActivity::class.java))
-                }) {
-                    Icon(
-                        imageVector = Icons.Filled.Settings,
-                        contentDescription = "Quantize",
-                    )
-                }
-                IconButton(onClick = {
-                    context.startActivity(Intent(context, com.nervesparks.iris.EmbeddingActivity::class.java))
-                }) {
-                    Icon(
-                        imageVector = Icons.Filled.DataObject,
-                        contentDescription = "Embedding",
-                    )
-                }
-                IconButton(onClick = {
-                    context.startActivity(Intent(context, com.nervesparks.iris.SearchActivity::class.java))
-                }) {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = "Search",
-                    )
-                }
-            }
-
+        Column {
             // Show modal if required
             if (viewModel.showModal) {
                 // Modal dialog to show download options
@@ -801,7 +762,10 @@ fun ModelSelectorWithDownloadModal(
             modifier = Modifier
                 .fillMaxWidth()
                 .onGloballyPositioned { coordinates ->
-                    mTextFieldSize = coordinates.size.toSize()
+                    mTextFieldSize = Size(
+                        width = coordinates.size.width.toFloat(),
+                        height = coordinates.size.height.toFloat(),
+                    )
                 }
                 .pointerInput(Unit) {
                     detectTapGestures(

@@ -30,6 +30,7 @@ import androidx.compose.material.Scaffold
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +59,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.geometry.Offset
 import com.nervesparks.iris.ui.AboutScreen
 import com.nervesparks.iris.ui.BenchMarkScreen
 import com.nervesparks.iris.ui.MainChatScreen
@@ -75,6 +77,19 @@ enum class ChatScreen(@StringRes val title: Int) {
     ParamsScreen(title = R.string.parameters_screen_title),
     AboutScreen(title = R.string.about_screen_title),
     BenchMarkScreen(title = R.string.benchmark_screen_title),
+}
+
+@Composable
+fun LinearGradient() {
+    val darkNavyBlue = Color(0xFF050a14)
+    val lightNavyBlue = Color(0xFF051633)
+    val gradient = Brush.linearGradient(
+        colors = listOf(darkNavyBlue, lightNavyBlue),
+        start = Offset(0f, 300f),
+        end = Offset(0f, 1000f),
+
+    )
+    Box(modifier = Modifier.background(gradient).fillMaxSize())
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -162,26 +177,10 @@ fun ChatScreenAppBar(
             if (!canNavigateBack) {
                 IconButton(onClick = onSettingsClick) {
                     Icon(
-                        painter = painterResource(id = R.drawable.settings_gear_rounded),
+                        imageVector = Icons.Default.Settings,
                         contentDescription = stringResource(R.string.setting),
                         tint = Color.White,
                         modifier = Modifier.size(25.dp),
-                    )
-                }
-            }
-            if (!canNavigateBack) {
-                IconButton(
-                    onClick = {
-                        kc?.hide()
-                        viewModel.stop()
-                        viewModel.clear()
-                    },
-                ) {
-                    Icon(
-                        modifier = Modifier.size(25.dp),
-                        painter = painterResource(id = R.drawable.edit_3_svgrepo_com),
-                        contentDescription = "newChat",
-                        tint = Color.White,
                     )
                 }
             }
@@ -227,7 +226,7 @@ fun ChatScreenAppBar(
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(
+fun IrisApp(
     viewModel: MainViewModel,
     clipboardManager: ClipboardManager,
     downloadManager: DownloadManager,
@@ -289,6 +288,7 @@ fun ChatScreen(
                         models = models,
                         extFileDir = extFileDir,
                         onVoiceClicked = onVoiceClicked,
+                        isListening = isListening,
                     )
                 }
                 composable(route = ChatScreen.Settings.name) {
@@ -305,7 +305,10 @@ fun ChatScreen(
                         onBenchMarkScreenButtonClicked = {
                             navController.navigate((ChatScreen.BenchMarkScreen.name))
                         },
-
+                        onBackButtonClicked = {
+                            navController.navigateUp()
+                        },
+                        viewModel = viewModel,
                     )
                 }
                 composable(route = ChatScreen.SearchResults.name) {
