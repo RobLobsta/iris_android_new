@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -53,9 +54,8 @@ fun ModelCard(
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var isDeleted by remember { mutableStateOf(false) }
     var showDeletedMessage by remember { mutableStateOf(false) }
-    var isDefaultModel by remember { mutableStateOf(viewModel.defaultModelName.value == modelName) }
-    var showScanResult by remember { mutableStateOf(false) }
-    var scanResult by remember { mutableStateOf("") }
+    val downloadProgress by remember { mutableStateOf(0f) }
+    val isDownloading by remember { mutableStateOf(false) }
 
     LaunchedEffect(isDeleted) {
         if (isDeleted) {
@@ -69,13 +69,13 @@ fun ModelCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 8.dp)
             .shadow(
                 elevation = 8.dp,
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(12.dp),
             ),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xff0f172a),
+            containerColor = Color(0xff1e293b), // slate-800
             contentColor = Color.White,
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -85,28 +85,51 @@ fun ModelCard(
                 .fillMaxWidth()
                 .padding(16.dp),
         ) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = modelName,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f)
+                )
                 if (modelName == viewModel.loadedModelName.value) {
-                    Text(color = Color.Green, text = "Active Model", fontSize = 12.sp)
-                }
-                if (modelName == viewModel.defaultModelName.value) {
-                    Text(color = Color.LightGray, text = "Default", fontSize = 12.sp)
+                    Text(color = Color.Green, text = "Active", fontSize = 12.sp)
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = modelName,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+
+            File(extFilesDir, modelName).let {
+                Text(
+                    text = if (formatFileSize(it.length()) != "0 Bytes") {
+                        "Size: ${formatFileSize(it.length())}"
+                    } else {
+                        "Not Downloaded"
+                    },
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isDownloading) {
+                LinearProgressIndicator(
+                    progress = downloadProgress,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 val coroutineScope = rememberCoroutineScope()
-                val context = LocalContext.current
-                val fullUrl = if (downloadLink != "") {
+                val fullUrl = if (downloadLink.isNotEmpty()) {
                     downloadLink
                 } else {
                     "https://huggingface.co/${viewModel.userGivenModel}/resolve/main/$modelName?download=true"
@@ -126,92 +149,56 @@ fun ModelCard(
 
                 Spacer(modifier = Modifier.padding(5.dp))
 
-                if (showDeleteButton) {
-                    File(extFilesDir, modelName).let { downloadable ->
-                        if (downloadable.exists()) {
-                            Button(
-                                onClick = { showDeleteConfirmation = true },
-                                colors = ButtonDefaults.buttonColors(Color(0xFFb91c1c)),
-                            ) {
-                                Text(text = "Delete", color = Color.White)
-                            }
-
-                            if (showDeleteConfirmation) {
-                                AlertDialog(
-                                    textContentColor = Color.LightGray,
-                                    containerColor = Color(0xFF233340),
-                                    modifier = Modifier.background(shape = RoundedCornerShape(8.dp), color = Color(0xFF233340)),
-                                    onDismissRequest = { showDeleteConfirmation = false },
-                                    title = { Text("Confirm Deletion", color = Color.White) },
-                                    text = { Text("Are you sure you want to delete this model? The app will restart after deletion.") },
-                                    confirmButton = {
-                                        Button(
-                                            onClick = {
-                                                if (modelName == viewModel.loadedModelName.value) {
-                                                    viewModel.setDefaultModelName("")
-                                                }
-                                                coroutineScope.launch { viewModel.unload() }
-                                                File(extFilesDir, modelName).delete()
-                                                viewModel.showModal = false
-                                                if (modelName == viewModel.loadedModelName.value) {
-                                                    viewModel.newShowModal = true
-                                                    showDeleteConfirmation = false
-                                                }
-                                                if (modelName == viewModel.loadedModelName.value) {
-                                                    viewModel.loadedModelName.value = ""
-                                                }
-                                                isDeleted = true
-                                                viewModel.refresh = true
-                                            },
-                                            colors = ButtonDefaults.buttonColors(Color(0xFFb91c1c)),
-                                        ) {
-                                            Text("Delete")
-                                        }
-                                    },
-                                    dismissButton = {
-                                        Button(
-                                            colors = ButtonDefaults.buttonColors(Color.Black),
-                                            onClick = { showDeleteConfirmation = false },
-                                        ) {
-                                            Text("Cancel")
-                                        }
-                                    },
-                                )
-                            }
-                        }
+                if (showDeleteButton && File(extFilesDir, modelName).exists()) {
+                    Button(
+                        onClick = { showDeleteConfirmation = true },
+                        colors = ButtonDefaults.buttonColors(Color(0xFFb91c1c)),
+                    ) {
+                        Text(text = "Delete", color = Color.White)
                     }
-                }
 
-                Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            val result = viewModel.scanModel(File(extFilesDir, modelName).path)
-                            scanResult = result
-                            showScanResult = true
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(Color(0xFF2563eb)),
-                ) {
-                    Text(text = "Scan", color = Color.White)
-                }
-
-                if (showScanResult) {
-                    AlertDialog(
-                        textContentColor = Color.LightGray,
-                        containerColor = Color(0xFF233340),
-                        modifier = Modifier.background(shape = RoundedCornerShape(8.dp), color = Color(0xFF233340)),
-                        onDismissRequest = { showScanResult = false },
-                        title = { Text("Scan Result", color = Color.White) },
-                        text = { Text(scanResult) },
-                        confirmButton = {
-                            Button(
-                                onClick = { showScanResult = false },
-                                colors = ButtonDefaults.buttonColors(Color.Black),
-                            ) {
-                                Text("OK")
-                            }
-                        },
-                    )
+                    if (showDeleteConfirmation) {
+                        AlertDialog(
+                            textContentColor = Color.LightGray,
+                            containerColor = Color(0xFF233340),
+                            modifier = Modifier.background(shape = RoundedCornerShape(8.dp), color = Color(0xFF233340)),
+                            onDismissRequest = { showDeleteConfirmation = false },
+                            title = { Text("Confirm Deletion", color = Color.White) },
+                            text = { Text("Are you sure you want to delete this model? The app will restart after deletion.") },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        if (modelName == viewModel.loadedModelName.value) {
+                                            viewModel.setDefaultModelName("")
+                                        }
+                                        coroutineScope.launch { viewModel.unload() }
+                                        File(extFilesDir, modelName).delete()
+                                        viewModel.showModal = false
+                                        if (modelName == viewModel.loadedModelName.value) {
+                                            viewModel.newShowModal = true
+                                            showDeleteConfirmation = false
+                                        }
+                                        if (modelName == viewModel.loadedModelName.value) {
+                                            viewModel.loadedModelName.value = ""
+                                        }
+                                        isDeleted = true
+                                        viewModel.refresh = true
+                                    },
+                                    colors = ButtonDefaults.buttonColors(Color(0xFFb91c1c)),
+                                ) {
+                                    Text("Delete")
+                                }
+                            },
+                            dismissButton = {
+                                Button(
+                                    colors = ButtonDefaults.buttonColors(Color.Black),
+                                    onClick = { showDeleteConfirmation = false },
+                                ) {
+                                    Text("Cancel")
+                                }
+                            },
+                        )
+                    }
                 }
             }
 
@@ -250,19 +237,6 @@ fun ModelCard(
                         fontSize = 12.sp,
                     )
                 }
-            }
-
-            File(extFilesDir, modelName).let {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = if (formatFileSize(File(extFilesDir, modelName).length()) != "0 Bytes") {
-                        "Size: ${formatFileSize(File(extFilesDir, modelName).length())}"
-                    } else {
-                        "Not Downloaded"
-                    },
-                    color = Color.Gray,
-                    fontSize = 12.sp,
-                )
             }
         }
     }
